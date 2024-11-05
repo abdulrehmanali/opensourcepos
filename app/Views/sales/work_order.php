@@ -36,7 +36,7 @@ if(isset($error_message))
 				$.get('<?= esc("/sales/sendPdf/$sale_id_num/work_order") ?>',
 					function(response)
 					{
-						$.notify( { message: response.message }, { type: response.success ? 'success' : 'danger'} )
+						$.notify( { icon: 'bi-bell-fill', message: response.message}, { type: response.success ? 'success' : 'danger'} )
 					}, 'json'
 				);
 			};

@@ -38,7 +38,7 @@ $(document).ready(function()
 		$.get('<?= esc("/sales/sendPdf/$sale_id_num") ?>',
 			function(response)
 			{
-				$.notify( { message: response.message }, { type: response.success ? 'success' : 'danger'} )
+				$.notify( { icon: 'bi-bell-fill', message: response.message}, { type: response.success ? 'success' : 'danger'} )
 			}, 'json'
 		);
 	};

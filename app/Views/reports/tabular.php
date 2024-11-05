@@ -63,7 +63,6 @@
 				pagination: true,
 				showColumns: true,
 				data: <?= json_encode($data) ?>,
-				iconSize: 'sm',
 				paginationVAlign: 'bottom',
 				escape: true,
 				search: true

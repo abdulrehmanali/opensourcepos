@@ -169,7 +169,7 @@ $(document).ready(function()
 				$.get("<?= esc("$controller_name/sendPdf/" . $sale_info['sale_id']) ?>",
 					function(response) {
 						BootstrapDialog.closeAll();
-						$.notify( { message: response.message }, { type: response.success ? 'success' : 'danger'} )
+						$.notify( { icon: 'bi-bell-fill', message: response.message}, { type: response.success ? 'success' : 'danger'} )
 					}, 'json'
 				);
 			}

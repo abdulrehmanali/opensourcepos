@@ -7,6 +7,11 @@
 ?>
 <?= view('partial/header') ?>
 
+<?php
+$title_info['config_title'] = 'Item Kits';
+echo view('configs/config_header', $title_info);
+?>
+
 <script type="application/javascript">
 $(document).ready(function()
 {
@@ -30,21 +35,19 @@ $(document).ready(function()
 
 </script>
 
-<div id="title_bar" class="btn-toolbar">
-	<button class='btn btn-info btn-sm pull-right modal-dlg' data-btn-submit='<?= lang('Common.submit') ?>' data-href='<?= esc("$controller_name/view") ?>'
-			title='<?= lang(ucfirst($controller_name) . '.new') ?>'>
-		<span class="glyphicon glyphicon-tags">&nbsp</span><?= lang(ucfirst($controller_name) . '.new') ?>
+<div class="d-flex gap-2 justify-content-end">
+	<button type="button" class="btn btn-primary icon-link" data-btn-submit="<?= lang('Common.submit') ?>" data-href="<?= esc("$controller_name/view") ?>" title="<?= lang(ucfirst($controller_name). '.new') ?>">
+		<i class="bi-tags"></i><?= lang(ucfirst($controller_name) .".new") ?>
 	</button>
 </div>
 
 <div id="toolbar">
-	<div class="pull-left btn-toolbar">
-		<button id="delete" class="btn btn-default btn-sm">
-			<span class="glyphicon glyphicon-trash">&nbsp</span><?= lang('Common.delete') ?>
+	<div class="d-flex gap-2">
+		<button type="button" class="btn btn-secondary icon-link">
+			<i class="bi-trash"></i><span class="d-none d-sm-block"><?= lang('Common.delete') ?></span>
 		</button>
-
-		<button id="generate_barcodes" class="btn btn-default btn-sm" data-href='<?= esc("$controller_name/generateBarcodes") ?>'>
-			<span class="glyphicon glyphicon-barcode">&nbsp</span><?= lang('Items.generate_barcodes') ?>
+		<button type="button" class="btn btn-secondary icon-link" data-href="<?= esc('$controller_name/generateBarcodes') ?>" title="<?= lang('Items.generate_barcodes') ?>">
+			<i class="bi-upc-scan"></i><span class="d-none d-sm-block"><?= lang('Items.generate_barcodes') ?></span>
 		</button>
 	</div>
 </div>

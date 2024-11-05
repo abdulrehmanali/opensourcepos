@@ -6,7 +6,7 @@
 	if(empty($config['date_or_time_format']))
 	{
 ?>
-		$('#daterangepicker').css("width","180");
+		$('#daterangepicker').css("width","210");
 		var start_date = "<?= date('Y-m-d') ?>";
 		var end_date   = "<?= date('Y-m-d') ?>";
 
@@ -106,7 +106,10 @@
 			"startDate": "<?= date($config['dateformat'], mktime(0,0,0,date("m"),date("d")+1,date("Y"))-1) ?>",
 			"endDate": "<?= date($config['dateformat'], mktime(0,0,0,date("m"),date("d")+1,date("Y"))-1) ?>",
 			"minDate": "<?= date($config['dateformat'], mktime(0,0,0,01,01,2010)) ?>",
-			"maxDate": "<?= date($config['dateformat'], mktime(0,0,0,date("m"),date("d")+1,date("Y"))-1) ?>"
+			"maxDate": "<?= date($config['dateformat'], mktime(0,0,0,date("m"),date("d")+1,date("Y"))-1) ?>",
+			"buttonClasses": "btn",
+			"applyButtonClasses": "btn-primary",
+			"cancelClass": "btn-secondary"
 		}, function(start, end, label) {
 			start_date = start.format('YYYY-MM-DD');
 			end_date = end.format('YYYY-MM-DD');
@@ -217,7 +220,10 @@
 			"startDate": "<?= date($config['dateformat'] . ' ' . $config['timeformat'],mktime(0,0,0,date("m"),date("d"),date("Y"))) ?>",
 			"endDate": "<?= date($config['dateformat'] . ' ' . $config['timeformat'],mktime(23,59,59,date("m"),date("d"),date("Y"))) ?>",
 			"minDate": "<?= date($config['dateformat'] . ' ' . $config['timeformat'],mktime(0,0,0,01,01,2010)) ?>",
-			"maxDate": "<?= date($config['dateformat'] . ' ' . $config['timeformat'],mktime(23,59,59,date("m"),date("d"),date("Y"))) ?>"
+			"maxDate": "<?= date($config['dateformat'] . ' ' . $config['timeformat'],mktime(23,59,59,date("m"),date("d"),date("Y"))) ?>",
+			"buttonClasses": "btn",
+			"applyButtonClasses": "btn-primary",
+			"cancelClass": "btn-secondary"
 		}, function(start, end, label) {
 			start_date = start.format('YYYY-MM-DD HH:mm:ss');
 			end_date = end.format('YYYY-MM-DD HH:mm:ss');
