@@ -4,36 +4,28 @@
  * @var array $config
  */
 ?>
-<?= form_open('config/saveRewards/', ['id' => 'reward_config_form', 'class' => 'form-horizontal']) ?>
-    <div id="config_wrapper">
-        <fieldset id="config_info">
-            <div id="required_fields_message"><?= lang('Common.fields_required_message') ?></div>
-            <ul id="reward_error_message_box" class="error_message_box"></ul>
+<?= form_open('config/saveRewards/', ['id' => 'reward_config_form']) ?>
 
-			<div class="form-group form-group-sm">
-				<?= form_label(lang('Config.customer_reward_enable'), 'customer_reward_enable', ['class' => 'control-label col-xs-2']) ?>
-				<div class='col-xs-1'>
-					<?= form_checkbox ([
-						'name' => 'customer_reward_enable',
-						'value' => 'customer_reward_enable',
-						'id' => 'customer_reward_enable',
-						'checked' => $config['customer_reward_enable'] == 1
-					]) ?>
-				</div>
-			</div>
+<?php
+$title_info['config_title'] = lang('Config.reward_configuration');
+echo view('configs/config_header', $title_info);
+?>
 
-            <div id="customer_rewards">
-				<?= view('partial/customer_rewards', ['customer_rewards' => $customer_rewards]) ?>
-			</div>
+<ul id="reward_error_message_box" class="error_message_box"></ul>
 
-            <?= form_submit ([
-                'name' => 'submit_reward',
-                'id' => 'submit_reward',
-                'value' => lang('Common.submit'),
-                'class' => 'btn btn-primary btn-sm pull-right'
-			]) ?>
-        </fieldset>
-    </div>
+<div class="form-check form-switch mb-3">
+	<input class="form-check-input" type="checkbox" role="switch" id="customer_reward_enable" name="customer_reward_enable" value="customer_reward_enable" <?= $config['customer_reward_enable'] == 1 ? 'checked' : '' ?>>
+	<label class="form-check-label" for="customer_reward_enable"><?= lang('Config.customer_reward_enable'); ?></label>
+</div>
+
+<div class="row" id="customer_rewards">
+	<?= view('partial/customer_rewards', ['customer_rewards' => $customer_rewards]) ?>
+</div>
+
+<div class="d-flex justify-content-end">
+	<button class="btn btn-primary" type="submit" name="submit_reward"><?= lang('Common.submit'); ?></button>
+</div>
+
 <?= form_close() ?>
 
 <script type="application/javascript">
@@ -122,7 +114,7 @@ $(document).ready(function()
 					return true;
 				},
 				success: function(response)	{
-					$.notify({ message: response.message }, { type: response.success ? 'success' : 'danger'});
+					$.notify( { icon: 'bi-bell-fill', message: response.message}, { type: response.success ? 'success' : 'danger'} )
 					$("#customer_rewards").load('<?= "config/customerRewards" ?>', init_add_remove_tables);
 				},
 				dataType: 'json'

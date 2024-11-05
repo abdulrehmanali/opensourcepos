@@ -27,7 +27,7 @@ if (isset($error_message))
 			$.get('<?= site_url() . esc("/sales/sendReceipt/$sale_id_num", 'url') ?>',
 				function(response)
 				{
-					$.notify( { message: response.message }, { type: response.success ? 'success' : 'danger'} )
+					$.notify( { icon: 'bi-bell-fill', message: response.message}, { type: response.success ? 'success' : 'danger'} )
 				}, 'json'
 			);
 		};

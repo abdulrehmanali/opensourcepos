@@ -1,11 +1,15 @@
 <?php
-	echo view('partial/header')
-
 /**
  * @var string $controller_name
  * @var string $table_headers
  * @var array $config
  */
+?>
+<?= view('partial/header') ?>
+
+<?php
+$title_info['config_title'] = 'Attributes';
+echo view('configs/config_header', $title_info);
 ?>
 
 <script type="application/javascript">
@@ -22,18 +26,16 @@
 	});
 </script>
 
-<div id="title_bar" class="btn-toolbar print_hide">
-
-	<button class='btn btn-info btn-sm pull-right modal-dlg' data-btn-submit='<?= lang('Common.submit') ?>' data-href='<?= esc("$controller_name/view") ?>'
-	        title='<?= lang(ucfirst($controller_name). ".new") ?>'>
-		<span class="glyphicon glyphicon-star">&nbsp</span><?= lang(ucfirst($controller_name). ".new") ?>
+<div class="d-flex gap-2 justify-content-end">
+	<button type="button" class="btn btn-primary icon-link" data-btn-submit="<?= lang('Common.submit') ?>" data-href="<?= esc('$controller_name/view') ?>" title="<?= lang(ucfirst($controller_name). ".new") ?>">
+		<i class="bi-star"></i><?= lang(ucfirst($controller_name). ".new") ?>
 	</button>
 </div>
 
 <div id="toolbar">
-	<div class="pull-left form-inline" role="toolbar">
-		<button id="delete" class="btn btn-default btn-sm print_hide">
-			<span class="glyphicon glyphicon-trash">&nbsp</span><?= lang('Common.delete') ?>
+	<div class="d-flex gap-2">
+		<button type="button" class="btn btn-secondary icon-link">
+			<i class="bi-trash"></i><span class="d-none d-sm-block"><?= lang('Common.delete') ?></span>
 		</button>
 	</div>
 </div>

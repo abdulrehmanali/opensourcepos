@@ -45,105 +45,171 @@ use App\Models\Employee;
 <?= view('partial/header') ?>
 
 <?php
+$title_info['config_title'] = 'Sales Register';
+echo view('configs/config_header', $title_info);
+?>
+
+<?php
 if(isset($error))
 {
-	echo "<div class='alert alert-dismissible alert-danger'>$error</div>";
+	echo "<div class='alert alert-danger alert-dismissible'>$error</div>";
 }
 
 if(!empty($warning))
 {
-	echo "<div class='alert alert-dismissible alert-warning'>$warning</div>";
+	echo "<div class='alert alert-warning alert-dismissible'>$warning</div>";
 }
 
 if(isset($success))
 {
-	echo "<div class='alert alert-dismissible alert-success'>$success</div>";
+	echo "<div class='alert alert-success alert-dismissible'>$success</div>";
 }
 ?>
 
-<div id="register_wrapper">
+<?= form_open("$controller_name/changeMode", ['id' => 'mode_form', 'class' => 'card bg-secondary-subtle rounded-bottom-0']) ?>
 
 <!-- Top register controls -->
-	<?= form_open("$controller_name/changeMode", ['id' => 'mode_form', 'class' => 'form-horizontal panel panel-default']) ?>
-		<div class="panel-body form-group">
-			<ul>
-				<li class="pull-left first_li">
-					<label class="control-label"><?= lang(ucfirst($controller_name) .'.mode') ?></label>
-				</li>
-				<li class="pull-left">
-					<?= form_dropdown('mode', $modes, $mode, ['onchange' => "$('#mode_form').submit();", 'class' => 'selectpicker show-menu-arrow', 'data-style' => 'btn-default btn-sm', 'data-width' => 'fit']) ?>
-				</li>
+	<div class="card-body">
+		<div class="d-flex">
+			<div class="me-auto pe-2">
+				<div class="input-group">
+					<span class="input-group-text" id="mode_select"><?= lang(ucfirst($controller_name) .'.mode') ?></span>
+					<?= form_dropdown('mode', $modes, $mode, ['onchange' => "$('#mode_form').submit();", 'class' => 'form-select', 'aria-describedby' => 'mode_select']) ?>
 				<?php
 				if($config['dinner_table_enable'])
 				{
 				?>
-					<li class="pull-left first_li">
-						<label class="control-label"><?= lang(ucfirst($controller_name) .'.table') ?></label>
-					</li>
-					<li class="pull-left">
-						<?= form_dropdown('dinner_table', $empty_tables, $selected_table, ['onchange'=>"$('#mode_form').submit();", 'class' => 'selectpicker show-menu-arrow', 'data-style' => 'btn-default btn-sm', 'data-width' => 'fit']) ?>
-					</li>
+					<span class="input-group-text" id="dinner_table_select"><?= lang(ucfirst($controller_name) .'.table') ?></span>
+					<?= form_dropdown('dinner_table', $empty_tables, $selected_table, ['onchange' => "$('#mode_form').submit();", 'class' => 'form-select', 'aria-describedby' => 'dinner_table_select']) ?>
 				<?php
 				}
 				if(count($stock_locations) > 1)
 				{
 				?>
-					<li class="pull-left">
-						<label class="control-label"><?= lang(ucfirst($controller_name) .'.stock_location') ?></label>
-					</li>
-					<li class="pull-left">
-						<?= form_dropdown('stock_location', $stock_locations, $stock_location, ['onchange' => "$('#mode_form').submit();", 'class' => 'selectpicker show-menu-arrow', 'data-style' => 'btn-default btn-sm', 'data-width' => 'fit']) ?>
-					</li>
+					<span class="input-group-text" id="stock_location_select"><?= lang(ucfirst($controller_name) .'.stock_location') ?></span>
+					<?= form_dropdown('stock_location', $stock_locations, $stock_location, ['onchange' => "$('#mode_form').submit();", 'class' => 'form-select', 'aria-describedby' => 'stock_location_select']) ?>
 				<?php
 				}
 				?>
-
-				<li class="pull-right">
-					<button class='btn btn-default btn-sm modal-dlg' id='show_suspended_sales_button' data-href="<?= esc("$controller_name/suspended") ?>"
-							title="<?= lang(ucfirst($controller_name) .'.suspended_sales') ?>">
-						<span class="glyphicon glyphicon-align-justify">&nbsp</span><?= lang(ucfirst($controller_name) .'.suspended_sales') ?>
-					</button>
-				</li>
-
+				</div>
+			</div>
+			<div class="d-flex gap-2">
 				<?php
 				$employee = model(Employee::class);
 				if($employee->has_grant('reports_sales', session('person_id')))
 				{
 				?>
-					<li class="pull-right">
-						<?= anchor("$controller_name/manage", '<span class="glyphicon glyphicon-list-alt">&nbsp</span>' . lang(ucfirst($controller_name) .'.takings'),
-									array('class' => 'btn btn-primary btn-sm', 'id' => 'sales_takings_button', 'title' => lang(ucfirst($controller_name) .'.takings'))) ?>
-					</li>
-				<?php
-				}
-				?>
-			</ul>
+					<a type="button" class="btn btn-primary icon-link" id="sales_takings_button" href="<?= base_url("$controller_name/manage") ?>" title="<?= lang(ucfirst($controller_name) .'.takings') ?>">
+						<i class="bi-receipt-cutoff"></i><?= lang(ucfirst($controller_name) .'.takings') ?>
+					</a>
+				<?php } ?>
+				<button type="button" class="btn btn-primary icon-link" id="show_suspended_sales_button" data-href="<?= esc("$controller_name/suspended") ?>" title="<?= lang(ucfirst($controller_name) .'.suspended_sales') ?>">
+					<i class="bi-pause-circle"></i><?= lang(ucfirst($controller_name) .'.suspended_sales') ?>
+				</button>
+			</div>
 		</div>
-	<?= form_close() ?>
+	</div>
+<?= form_close() ?>
 
-	<?php $tabindex = 0; ?>
+<?php $tabindex = 0; ?>
 
-	<?= form_open("$controller_name/add", ['id' => 'add_item_form', 'class' => 'form-horizontal panel panel-default']) ?>
-		<div class="panel-body form-group">
-			<ul>
-				<li class="pull-left first_li">
-					<label for="item" class='control-label'><?= lang(ucfirst($controller_name) .'.find_or_scan_item_or_receipt') ?></label>
-				</li>
-				<li class="pull-left">
-					<?= form_input (['name' => 'item', 'id' => 'item', 'class' => 'form-control input-sm', 'size' => '50', 'tabindex' => ++$tabindex]) ?>
-					<span class="ui-helper-hidden-accessible" role="status"></span>
-				</li>
-				<li class="pull-right">
-					<button id='new_item_button' class='btn btn-info btn-sm pull-right modal-dlg' data-btn-new="<?= lang('Common.new') ?>" data-btn-submit="<?= lang('Common.submit') ?>" data-href='<?= "items/view" ?>'
-							title="<?= lang(ucfirst($controller_name) .".new_item") ?>">
-						<span class="glyphicon glyphicon-tag">&nbsp</span><?= lang(ucfirst($controller_name) .".new_item") ?>
+<div class="row">
+    <div class="col-8">
+		<div class="row">
+            <div class="col-12 pe-0">
+				<?= form_open("$controller_name/add", ['id' => 'add_item_form', 'class' => 'card bg-primary-subtle border-top-0 border-bottom-0 rounded-0']) ?>
+					<div class="card-body d-flex gap-2">
+						<div class="input-group">
+							<span class="input-group-text text-primary border-primary-subtle" data-bs-toggle="tooltip" data-bs-placement="right" title="<?= lang(ucfirst($controller_name) .'.find_or_scan_item_or_receipt') ?>">
+								<i class="bi-search"></i>
+							</span>
+							<input type="text" name="item" id="item" class="form-control border-primary-subtle" tabindex="<?= ++$tabindex ?>">
+						</div>
+						<button type="button" class="btn btn-primary icon-link ms-auto text-nowrap" id="new_item_button" data-btn-new="<?= lang('Common.new') ?>" data-btn-submit="<?= lang('Common.submit') ?>" data-href='<?= "items/view" ?>' title="<?= lang(ucfirst($controller_name) .".new_item") ?>">
+							<i class="bi-tag"></i><?= lang(ucfirst($controller_name) .".new_item") ?>
+						</button>
+					</div>
+				<?= form_close() ?>
+			</div>
+			<div class="col-12 pe-0">
+				<!-- Sale Items List -->
+				<div class="card table-responsive rounded-end-0 rounded-top-0" style="min-height: 250px;">
+					<table class="table <?php if(count($cart) == 1) { ?>table-striped table-hover<?php }; if(count($cart) == 0) { ?>table-borderless<?php } ?>">
+						<thead>
+							<tr>
+								<th scope="col" style="width: 5%;"><i class="bi-trash"></i></th>
+								<th scope="col" style="width: 15%;"><?= lang(ucfirst($controller_name) .'.item_number') ?></th>
+								<th scope="col" style="width: 30%;"><?= lang(ucfirst($controller_name) .'.item_name') ?></th>
+								<th scope="col" style="width: 10%;"><?= lang(ucfirst($controller_name) .'.price') ?></th>
+								<th scope="col" style="width: 10%;"><?= lang(ucfirst($controller_name) .'.quantity') ?></th>
+								<th scope="col" style="width: 15%;"><?= lang(ucfirst($controller_name) .'.discount') ?></th>
+								<th scope="col" style="width: 10%;"><?= lang(ucfirst($controller_name) .'.total') ?></th>
+								<th scope="col" style="width: 5%;"><?= lang(ucfirst($controller_name) .'.update') ?></th>
+							</tr>
+						</thead>
+
+						<tbody id="cart_contents">
+							<?php if(count($cart) == 0) { ?>
+								<tr>
+									<td colspan="8">
+										<div class="alert alert-primary m-0"><?= lang(ucfirst($controller_name) .'.no_items_in_cart') ?></div>
+									</td>
+								</tr>
+							<?php } ?>
+						</tbody>
+					</table>
+				</div>
+			</div>
+        </div>
+	</div>
+    <div class="col-4 ps-0">
+		<!-- Overall Sale -->
+		<?= form_open("$controller_name/selectCustomer", ['id' => 'select_customer_form', 'class' => 'card border-top-0 border-start-0 rounded-top-0 rounded-start-0', 'style' => 'min-height: 320px;']) ?>
+			<div class="card-body" id="select_customer">
+				<div class="mb-3">
+					<label id="customer_label" for="customer" class="form-label"><?= lang(ucfirst($controller_name) .'.select_customer') . '&nbsp;' . esc("$customer_required") ?></label>
+					<input type="text" name="customer" id="customer" class="form-control" value="<?= lang(ucfirst($controller_name) . '.start_typing_customer_name') ?>">
+				</div>
+				<div class="d-flex gap-2 justify-content-center mb-3">
+					<button class="btn btn-primary icon-link" data-btn-submit="<?= lang('Common.submit') ?>" data-href="<?= 'customers/view' ?>" title="<?= lang(ucfirst($controller_name) .'.new_customer') ?>">
+						<i class="bi-person-add"></i><?= lang(ucfirst($controller_name) .'.new_customer') ?>
 					</button>
-				</li>
-			</ul>
-		</div>
-	<?= form_close() ?>
+					<button class="btn btn-secondary icon-link" id="show_keyboard_help" data-href="<?= esc('$controller_name/salesKeyboardHelp') ?>" title="<?= lang(ucfirst($controller_name) .'.key_title') ?>">
+						<i class="bi-keyboard"></i><?= lang(ucfirst($controller_name) .'.key_help') ?>
+					</button>
+				</div>
+
+				<table class="table table-borderless table-sm" id="sale_totals">
+					<tbody>
+						<tr>
+							<td class="px-0"><?= lang(ucfirst($controller_name) .'.quantity_of_items', [$item_count]) ?></td>
+							<td class="px-0 text-end"><?= $total_units ?></td>
+						</tr>
+						<tr>
+							<td class="px-0"><?= lang(ucfirst($controller_name) .'.sub_total') ?></td>
+							<td class="px-0 text-end"><?= to_currency($subtotal) ?></td>
+						</tr>
+						<?php foreach($taxes as $tax_group_index=>$tax) { ?>
+							<tr>
+								<td class="px-0"><?= (float)$tax['tax_rate'] . '% ' . $tax['tax_group'] ?></td>
+								<td class="px-0 text-end"><?= to_currency_tax($tax['sale_tax_amount']) ?></td>
+							</tr>
+						<?php } ?>
+						<tr>
+							<td class="fs-5 fw-semibold px-0"><?= lang(ucfirst($controller_name) .'.total') ?></td>
+							<td class="fs-5 fw-semibold px-0 text-end"><span id="sale_total"><?= to_currency($total) ?></span></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		<?= form_close() ?>
+    </div>
+</div>
 
 
+
+<div id="register_wrapper">
+<br><br><br><br><br>
 <!-- Sale Items List -->
 
 	<table class="sales_table_100" id="register">
@@ -191,7 +257,7 @@ if(isset($success))
 							{
 							?>
 								<td><?= form_input (['name' => 'item_number', 'id' => 'item_number','class' => 'form-control input-sm', 'value'=>$item['item_number'], 'tabindex'=>++$tabindex]) ?></td>
-								<td style="align: center;">
+								<td style="text-align: center;">
 									<?= form_input (['name' => 'name','id' => 'name', 'class' => 'form-control input-sm', 'value'=>$item['name'], 'tabindex'=>++$tabindex]) ?>
 								</td>
 							<?php
@@ -200,7 +266,7 @@ if(isset($success))
 							{
 							?>
 								<td><?= esc($item['item_number']) ?></td>
-								<td style="align: center;">
+								<td style="text-align: center;">
 									<?= esc($item['name']) . ' '. implode(' ', [$item['attribute_values'], $item['attribute_dtvalues']]) ?>
 									<br/>
 									<?php if ($item['stock_type'] == '0'): echo '[' . to_quantity_decimals($item['in_stock']) . ' in ' . $item['stock_name'] . ']'; endif; ?>
@@ -267,7 +333,7 @@ if(isset($success))
 							{
 							?>
 								<td><?= form_input (['type' => 'hidden', 'name' => 'item_id', 'value' => $item['item_id']]) ?></td>
-								<td style="align: center;" colspan="6">
+								<td style="text-align: center;" colspan="6">
 									<?= form_input (['name' => 'item_description', 'id' => 'item_description', 'class' => 'form-control input-sm', 'value' => $item['description'], 'tabindex' => ++$tabindex]) ?>
 								</td>
 								<td> </td>
@@ -483,11 +549,8 @@ if(isset($success))
 			</tr>
 		</table>
 
-		<?php
-		// Only show this part if there are Items already in the register
-		if(count($cart) > 0)
-		{
-		?>
+		<!-- Only show this part if there are Items already in the register -->
+		<?php if(count($cart) > 0) { ?>
 			<table class="sales_table_100" id="payment_totals">
 				<tr>
 					<th style="width: 55%;"><?= lang(ucfirst($controller_name) .'.payments_total') ?></th>
@@ -500,11 +563,8 @@ if(isset($success))
 			</table>
 
 			<div id="payment_details">
-				<?php
-				// Show Complete sale button instead of Add Payment if there is no amount due left
-				if($payments_cover_total)
-				{
-				?>
+				<!-- Show Complete sale button instead of Add Payment if there is no amount due left -->
+				<?php if($payments_cover_total) { ?>
 					<?= form_open("$controller_name/addPayment", ['id' => 'add_payment_form', 'class' => 'form-horizontal']) ?>
 						<table class="sales_table_100">
 							<tr>
@@ -711,337 +771,336 @@ if(isset($success))
 </div>
 
 <script type="application/javascript">
-$(document).ready(function()
-{
-	const redirect = function() {
-		window.location.href = "<?= site_url('sales'); ?>";
-	};
-
-	$("#remove_customer_button").click(function()
+	$(document).ready(function()
 	{
-		$.post("<?= site_url('sales/removeCustomer'); ?>", redirect);
-	});
+		const redirect = function() {
+			window.location.href = "<?= site_url('sales'); ?>";
+		};
 
-	$(".delete_item_button").click(function()
-	{
-		const item_id = $(this).data('item-id');
-		$.post("<?= site_url('sales/deleteItem/'); ?>" + item_id, redirect);
-	});
-
-	$(".delete_payment_button").click(function() {
-		const item_id = $(this).data('payment-id');
-		$.post("<?= site_url('sales/deletePayment/'); ?>" + item_id, redirect);
-	});
-
-	$("input[name='item_number']").change(function() {
-		var item_id = $(this).parents('tr').find("input[name='item_id']").val();
-		var item_number = $(this).val();
-		$.ajax({
-			url: "<?= site_url('sales/changeItemNumber') ?>",
-			method: 'post',
-			data: {
-				'item_id': item_id,
-				'item_number': item_number,
-			},
-			dataType: 'json'
-		});
-	});
-
-	$("input[name='name']").change(function() {
-		var item_id = $(this).parents('tr').find("input[name='item_id']").val();
-		var item_name = $(this).val();
-		$.ajax({
-			url: "<?= site_url('sales/changeItemName') ?>",
-			method: 'post',
-			data: {
-				'item_id': item_id,
-				'item_name': item_name,
-			},
-			dataType: 'json'
-		});
-	});
-
-	$("input[name='item_description']").change(function() {
-		var item_id = $(this).parents('tr').find("input[name='item_id']").val();
-		var item_description = $(this).val();
-		$.ajax({
-			url: "<?= site_url('sales/changeItemDescription') ?>",
-			method: 'post',
-			data: {
-				'item_id': item_id,
-				'item_description': item_description,
-			},
-			dataType: 'json'
-		});
-	});
-
-	$('#item').focus();
-
-	$('#item').blur(function() {
-		$(this).val("<?= lang(ucfirst($controller_name) .'.start_typing_item_name') ?>");
-	});
-
-	$('#item').autocomplete( {
-		source: "<?= esc("$controller_name/itemSearch") ?>",
-		minChars: 0,
-		autoFocus: false,
-		delay: 500,
-		select: function (a, ui) {
-			$(this).val(ui.item.value);
-			$('#add_item_form').submit();
-			return false;
-		}
-	});
-
-	$('#item').keypress(function (e) {
-		if(e.which == 13) {
-			$('#add_item_form').submit();
-			return false;
-		}
-	});
-
-	var clear_fields = function() {
-		if($(this).val().match("<?= lang(ucfirst($controller_name) .'.start_typing_item_name') . '|' . lang(ucfirst($controller_name) .'.start_typing_customer_name') ?>"))
+		$("#remove_customer_button").click(function()
 		{
-			$(this).val('');
-		}
-	};
-
-	$('#item, #customer').click(clear_fields).dblclick(function(event) {
-		$(this).autocomplete('search');
-	});
-
-	$('#customer').blur(function() {
-		$(this).val("<?= lang(ucfirst($controller_name) .'.start_typing_customer_name') ?>");
-	});
-
-	$('#customer').autocomplete( {
-		source: "<?= site_url('customers/suggest') ?>",
-		minChars: 0,
-		delay: 10,
-		select: function (a, ui) {
-			$(this).val(ui.item.value);
-			$('#select_customer_form').submit();
-			return false;
-		}
-	});
-
-	$('#customer').keypress(function (e) {
-		if(e.which == 13) {
-			$('#select_customer_form').submit();
-			return false;
-		}
-	});
-
-	$('.giftcard-input').autocomplete( {
-		source: "<?= site_url('giftcards/suggest') ?>",
-		minChars: 0,
-		delay: 10,
-		select: function (a, ui) {
-			$(this).val(ui.item.value);
-			$('#add_payment_form').submit();
-			return false;
-		}
-	});
-
-	$('#comment').keyup(function() {
-		$.post("<?= esc(site_url("$controller_name/setComment")) ?>", {comment: $('#comment').val()});
-	});
-
-	<?php
-	if($config['invoice_enable'])
-	{
-	?>
-		$('#sales_invoice_number').keyup(function() {
-			$.post("<?= esc(site_url("$controller_name/setInvoiceNumber")) ?>", {sales_invoice_number: $('#sales_invoice_number').val()});
+			$.post("<?= site_url('sales/removeCustomer'); ?>", redirect);
 		});
 
-	<?php
-	}
-	?>
-
-	$('#sales_print_after_sale').change(function() {
-		$.post("<?= esc(site_url("$controller_name/setPrintAfterSale")) ?>", {sales_print_after_sale: $(this).is(':checked')});
-	});
-
-	$('#price_work_orders').change(function() {
-		$.post("<?= esc(site_url("$controller_name/setPriceWorkOrders")) ?>", {price_work_orders: $(this).is(':checked')});
-	});
-
-	$('#email_receipt').change(function() {
-		$.post("<?= esc(site_url("$controller_name/setEmailReceipt")) ?>", {email_receipt: $(this).is(':checked')});
-	});
-
-	$('#finish_sale_button').click(function() {
-		$('#buttons_form').attr('action', "<?= "$controller_name/complete" ?>");
-		$('#buttons_form').submit();
-	});
-
-	$('#finish_invoice_quote_button').click(function() {
-		$('#buttons_form').attr('action', "<?= "$controller_name/complete" ?>");
-		$('#buttons_form').submit();
-	});
-
-	$('#suspend_sale_button').click(function() {
-		$('#buttons_form').attr('action', "<?= site_url("$controller_name/suspend") ?>");
-		$('#buttons_form').submit();
-	});
-
-	$('#cancel_sale_button').click(function() {
-		if(confirm("<?= lang(ucfirst($controller_name) .'.confirm_cancel_sale') ?>"))
+		$(".delete_item_button").click(function()
 		{
-			$('#buttons_form').attr('action', "<?= site_url("$controller_name/cancel") ?>");
-			$('#buttons_form').submit();
-		}
-	});
+			const item_id = $(this).data('item-id');
+			$.post("<?= site_url('sales/deleteItem/'); ?>" + item_id, redirect);
+		});
 
-	$('#add_payment_button').click(function() {
-		$('#add_payment_form').submit();
-	});
+		$(".delete_payment_button").click(function() {
+			const item_id = $(this).data('payment-id');
+			$.post("<?= site_url('sales/deletePayment/'); ?>" + item_id, redirect);
+		});
 
-	$('#payment_types').change(check_payment_type).ready(check_payment_type);
+		$("input[name='item_number']").change(function() {
+			var item_id = $(this).parents('tr').find("input[name='item_id']").val();
+			var item_number = $(this).val();
+			$.ajax({
+				url: "<?= site_url('sales/changeItemNumber') ?>",
+				method: 'post',
+				data: {
+					'item_id': item_id,
+					'item_number': item_number,
+				},
+				dataType: 'json'
+			});
+		});
 
-	$('#cart_contents input').keypress(function(event) {
-		if(event.which == 13)
-		{
-			$(this).parents('tr').prevAll('form:first').submit();
-		}
-	});
+		$("input[name='name']").change(function() {
+			var item_id = $(this).parents('tr').find("input[name='item_id']").val();
+			var item_name = $(this).val();
+			$.ajax({
+				url: "<?= site_url('sales/changeItemName') ?>",
+				method: 'post',
+				data: {
+					'item_id': item_id,
+					'item_name': item_name,
+				},
+				dataType: 'json'
+			});
+		});
 
-	$('#amount_tendered').keypress(function(event) {
-		if(event.which == 13)
-		{
-			$('#add_payment_form').submit();
-		}
-	});
+		$("input[name='item_description']").change(function() {
+			var item_id = $(this).parents('tr').find("input[name='item_id']").val();
+			var item_description = $(this).val();
+			$.ajax({
+				url: "<?= site_url('sales/changeItemDescription') ?>",
+				method: 'post',
+				data: {
+					'item_id': item_id,
+					'item_description': item_description,
+				},
+				dataType: 'json'
+			});
+		});
 
-	$('#finish_sale_button').keypress(function(event) {
-		if(event.which == 13)
-		{
-			$('#finish_sale_form').submit();
-		}
-	});
+		$('#item').focus();
 
-	dialog_support.init('a.modal-dlg, button.modal-dlg');
+		$('#item').blur(function() {
+			$(this).val("<?= lang(ucfirst($controller_name) .'.start_typing_item_name') ?>");
+		});
 
-	table_support.handle_submit = function(resource, response, stay_open) {
-		$.notify( { message: response.message }, { type: response.success ? 'success' : 'danger'} )
-
-		if(response.success)
-		{
-			if(resource.match(/customers$/))
-			{
-				$('#customer').val(response.id);
-				$('#select_customer_form').submit();
+		$('#item').autocomplete( {
+			source: "<?= esc("$controller_name/itemSearch") ?>",
+			minChars: 0,
+			autoFocus: false,
+			delay: 500,
+			select: function (a, ui) {
+				$(this).val(ui.item.value);
+				$('#add_item_form').submit();
+				return false;
 			}
-			else
+		});
+
+		$('#item').keypress(function (e) {
+			if(e.which == 13) {
+				$('#add_item_form').submit();
+				return false;
+			}
+		});
+
+		var clear_fields = function() {
+			if($(this).val().match("<?= lang(ucfirst($controller_name) .'.start_typing_item_name') . '|' . lang(ucfirst($controller_name) .'.start_typing_customer_name') ?>"))
 			{
-				var $stock_location = $("select[name='stock_location']").val();
-				$('#item_location').val($stock_location);
-				$('#item').val(response.id);
-				if(stay_open)
+				$(this).val('');
+			}
+		};
+
+		$('#item, #customer').click(clear_fields).dblclick(function(event) {
+			$(this).autocomplete('search');
+		});
+
+		$('#customer').blur(function() {
+			$(this).val("<?= lang(ucfirst($controller_name) .'.start_typing_customer_name') ?>");
+		});
+
+		$('#customer').autocomplete( {
+			source: "<?= site_url('customers/suggest') ?>",
+			minChars: 0,
+			delay: 10,
+			select: function (a, ui) {
+				$(this).val(ui.item.value);
+				$('#select_customer_form').submit();
+				return false;
+			}
+		});
+
+		$('#customer').keypress(function (e) {
+			if(e.which == 13) {
+				$('#select_customer_form').submit();
+				return false;
+			}
+		});
+
+		$('.giftcard-input').autocomplete( {
+			source: "<?= site_url('giftcards/suggest') ?>",
+			minChars: 0,
+			delay: 10,
+			select: function (a, ui) {
+				$(this).val(ui.item.value);
+				$('#add_payment_form').submit();
+				return false;
+			}
+		});
+
+		$('#comment').keyup(function() {
+			$.post("<?= esc(site_url("$controller_name/setComment")) ?>", {comment: $('#comment').val()});
+		});
+
+		<?php
+		if($config['invoice_enable'])
+		{
+		?>
+			$('#sales_invoice_number').keyup(function() {
+				$.post("<?= esc(site_url("$controller_name/setInvoiceNumber")) ?>", {sales_invoice_number: $('#sales_invoice_number').val()});
+			});
+
+		<?php
+		}
+		?>
+
+		$('#sales_print_after_sale').change(function() {
+			$.post("<?= esc(site_url("$controller_name/setPrintAfterSale")) ?>", {sales_print_after_sale: $(this).is(':checked')});
+		});
+
+		$('#price_work_orders').change(function() {
+			$.post("<?= esc(site_url("$controller_name/setPriceWorkOrders")) ?>", {price_work_orders: $(this).is(':checked')});
+		});
+
+		$('#email_receipt').change(function() {
+			$.post("<?= esc(site_url("$controller_name/setEmailReceipt")) ?>", {email_receipt: $(this).is(':checked')});
+		});
+
+		$('#finish_sale_button').click(function() {
+			$('#buttons_form').attr('action', "<?= "$controller_name/complete" ?>");
+			$('#buttons_form').submit();
+		});
+
+		$('#finish_invoice_quote_button').click(function() {
+			$('#buttons_form').attr('action', "<?= "$controller_name/complete" ?>");
+			$('#buttons_form').submit();
+		});
+
+		$('#suspend_sale_button').click(function() {
+			$('#buttons_form').attr('action', "<?= site_url("$controller_name/suspend") ?>");
+			$('#buttons_form').submit();
+		});
+
+		$('#cancel_sale_button').click(function() {
+			if(confirm("<?= lang(ucfirst($controller_name) .'.confirm_cancel_sale') ?>"))
+			{
+				$('#buttons_form').attr('action', "<?= site_url("$controller_name/cancel") ?>");
+				$('#buttons_form').submit();
+			}
+		});
+
+		$('#add_payment_button').click(function() {
+			$('#add_payment_form').submit();
+		});
+
+		$('#payment_types').change(check_payment_type).ready(check_payment_type);
+
+		$('#cart_contents input').keypress(function(event) {
+			if(event.which == 13)
+			{
+				$(this).parents('tr').prevAll('form:first').submit();
+			}
+		});
+
+		$('#amount_tendered').keypress(function(event) {
+			if(event.which == 13)
+			{
+				$('#add_payment_form').submit();
+			}
+		});
+
+		$('#finish_sale_button').keypress(function(event) {
+			if(event.which == 13)
+			{
+				$('#finish_sale_form').submit();
+			}
+		});
+
+		dialog_support.init('a.modal-dlg, button.modal-dlg');
+
+		table_support.handle_submit = function(resource, response, stay_open) {
+			$.notify( { icon: 'bi-bell-fill', message: response.message}, { type: response.success ? 'success' : 'danger'} )
+
+			if(response.success)
+			{
+				if(resource.match(/customers$/))
 				{
-					$('#add_item_form').ajaxSubmit();
+					$('#customer').val(response.id);
+					$('#select_customer_form').submit();
 				}
 				else
 				{
-					$('#add_item_form').submit();
+					var $stock_location = $("select[name='stock_location']").val();
+					$('#item_location').val($stock_location);
+					$('#item').val(response.id);
+					if(stay_open)
+					{
+						$('#add_item_form').ajaxSubmit();
+					}
+					else
+					{
+						$('#add_item_form').submit();
+					}
 				}
 			}
 		}
-	}
 
-	$('[name="price"],[name="quantity"],[name="discount"],[name="description"],[name="serialnumber"],[name="discounted_total"]').change(function() {
-		$(this).parents('tr').prevAll('form:first').submit()
+		$('[name="price"],[name="quantity"],[name="discount"],[name="description"],[name="serialnumber"],[name="discounted_total"]').change(function() {
+			$(this).parents('tr').prevAll('form:first').submit()
+		});
+
+		$('[name="discount_toggle"]').change(function() {
+			var input = $('<input>').attr('type', 'hidden').attr('name', 'discount_type').val(($(this).prop('checked'))?1:0);
+			$('#cart_'+ $(this).attr('data-line')).append($(input));
+			$('#cart_'+ $(this).attr('data-line')).submit();
+		});
 	});
 
-	$('[name="discount_toggle"]').change(function() {
-		var input = $('<input>').attr('type', 'hidden').attr('name', 'discount_type').val(($(this).prop('checked'))?1:0);
-		$('#cart_'+ $(this).attr('data-line')).append($(input));
-		$('#cart_'+ $(this).attr('data-line')).submit();
-	});
-});
+	function check_payment_type()
+	{
+		var cash_mode = <?= json_encode($cash_mode) ?>;
 
-function check_payment_type()
-{
-	var cash_mode = <?= json_encode($cash_mode) ?>;
-
-	if($("#payment_types").val() == "<?= lang(ucfirst($controller_name) .'.giftcard') ?>")
-	{
-		$("#sale_total").html("<?= to_currency($total) ?>");
-		$("#sale_amount_due").html("<?= to_currency($amount_due) ?>");
-		$("#amount_tendered_label").html("<?= lang(ucfirst($controller_name) .'.giftcard_number') ?>");
-		$("#amount_tendered:enabled").val('').focus();
-		$(".giftcard-input").attr('disabled', false);
-		$(".non-giftcard-input").attr('disabled', true);
-		$(".giftcard-input:enabled").val('').focus();
-	}
-	else if(($("#payment_types").val() == "<?= lang(ucfirst($controller_name) .'.cash') ?>" && cash_mode == '1'))
-	{
-		$("#sale_total").html("<?= to_currency($non_cash_total) ?>");
-		$("#sale_amount_due").html("<?= to_currency($cash_amount_due) ?>");
-		$("#amount_tendered_label").html("<?= lang(ucfirst($controller_name) .'.amount_tendered') ?>");
-		$("#amount_tendered:enabled").val("<?= to_currency_no_money($cash_amount_due) ?>");
-		$(".giftcard-input").attr('disabled', true);
-		$(".non-giftcard-input").attr('disabled', false);
-	}
-	else
-	{
-		$("#sale_total").html("<?= to_currency($non_cash_total) ?>");
-		$("#sale_amount_due").html("<?= to_currency($amount_due) ?>");
-		$("#amount_tendered_label").html("<?= lang(ucfirst($controller_name) .'.amount_tendered') ?>");
-		$("#amount_tendered:enabled").val("<?= to_currency_no_money($amount_due) ?>");
-		$(".giftcard-input").attr('disabled', true);
-		$(".non-giftcard-input").attr('disabled', false);
-	}
-}
-
-// Add Keyboard Shortcuts/Hotkeys to Sale Register
-document.body.onkeyup = function(e)
-{
-	switch(event.altKey && event.keyCode)
-	{
-		case 49: // Alt + 1 Items Seach
-			$("#item").focus();
-			$("#item").select();
-			break;
-		case 50: // Alt + 2 Customers Search
-			$("#customer").focus();
-			$("#customer").select();
-			break;
-		case 51: // Alt + 3 Suspend Current Sale
-			$("#suspend_sale_button").click();
-			break;
-		case 52: // Alt + 4 Check Suspended
-			$("#show_suspended_sales_button").click();
-			break;
-		case 53: // Alt + 5 Edit Amount Tendered Value
-			$("#amount_tendered").focus();
-			$("#amount_tendered").select();
-			break;
-		case 54: // Alt + 6 Add Payment
-			$("#add_payment_button").click();
-			break;
-		case 55: // Alt + 7 Add Payment and Complete Sales/Invoice
-			$("#add_payment_button").click();
-			window.location.href = "<?= 'sales/complete' ?>";
-			break;
-		case 56: // Alt + 8 Finish Quote/Invoice without payment
-			$("#finish_invoice_quote_button").click();
-			break;
-		case 57: // Alt + 9 Open Shortcuts Help Modal
-			$("#show_keyboard_help").click();
-			break;
+		if($("#payment_types").val() == "<?= lang(ucfirst($controller_name) .'.giftcard') ?>")
+		{
+			$("#sale_total").html("<?= to_currency($total) ?>");
+			$("#sale_amount_due").html("<?= to_currency($amount_due) ?>");
+			$("#amount_tendered_label").html("<?= lang(ucfirst($controller_name) .'.giftcard_number') ?>");
+			$("#amount_tendered:enabled").val('').focus();
+			$(".giftcard-input").attr('disabled', false);
+			$(".non-giftcard-input").attr('disabled', true);
+			$(".giftcard-input:enabled").val('').focus();
+		}
+		else if(($("#payment_types").val() == "<?= lang(ucfirst($controller_name) .'.cash') ?>" && cash_mode == '1'))
+		{
+			$("#sale_total").html("<?= to_currency($non_cash_total) ?>");
+			$("#sale_amount_due").html("<?= to_currency($cash_amount_due) ?>");
+			$("#amount_tendered_label").html("<?= lang(ucfirst($controller_name) .'.amount_tendered') ?>");
+			$("#amount_tendered:enabled").val("<?= to_currency_no_money($cash_amount_due) ?>");
+			$(".giftcard-input").attr('disabled', true);
+			$(".non-giftcard-input").attr('disabled', false);
+		}
+		else
+		{
+			$("#sale_total").html("<?= to_currency($non_cash_total) ?>");
+			$("#sale_amount_due").html("<?= to_currency($amount_due) ?>");
+			$("#amount_tendered_label").html("<?= lang(ucfirst($controller_name) .'.amount_tendered') ?>");
+			$("#amount_tendered:enabled").val("<?= to_currency_no_money($amount_due) ?>");
+			$(".giftcard-input").attr('disabled', true);
+			$(".non-giftcard-input").attr('disabled', false);
+		}
 	}
 
-	switch(event.keyCode)
+	// Add Keyboard Shortcuts/Hotkeys to Sale Register
+	document.body.onkeyup = function(e)
 	{
-		case 27: // ESC Cancel Current Sale
-			$("#cancel_sale_button").click();
-			break;
-	}
-}
+		switch(event.altKey && event.keyCode)
+		{
+			case 49: // Alt + 1 Items Seach
+				$("#item").focus();
+				$("#item").select();
+				break;
+			case 50: // Alt + 2 Customers Search
+				$("#customer").focus();
+				$("#customer").select();
+				break;
+			case 51: // Alt + 3 Suspend Current Sale
+				$("#suspend_sale_button").click();
+				break;
+			case 52: // Alt + 4 Check Suspended
+				$("#show_suspended_sales_button").click();
+				break;
+			case 53: // Alt + 5 Edit Amount Tendered Value
+				$("#amount_tendered").focus();
+				$("#amount_tendered").select();
+				break;
+			case 54: // Alt + 6 Add Payment
+				$("#add_payment_button").click();
+				break;
+			case 55: // Alt + 7 Add Payment and Complete Sales/Invoice
+				$("#add_payment_button").click();
+				window.location.href = "<?= 'sales/complete' ?>";
+				break;
+			case 56: // Alt + 8 Finish Quote/Invoice without payment
+				$("#finish_invoice_quote_button").click();
+				break;
+			case 57: // Alt + 9 Open Shortcuts Help Modal
+				$("#show_keyboard_help").click();
+				break;
+		}
 
+		switch(event.keyCode)
+		{
+			case 27: // ESC Cancel Current Sale
+				$("#cancel_sale_button").click();
+				break;
+		}
+	}
 </script>
 
 <?= view('partial/footer') ?>

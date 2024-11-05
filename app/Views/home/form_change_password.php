@@ -91,7 +91,7 @@ $(document).ready(function()
 				success: function(response)
 				{
 					dialog_support.hide();
-					$.notify(response.message, {type: response.success ? 'success' : 'danger'});
+					$.notify( { icon: 'bi-bell-fill', message: response.message}, { type: response.success ? 'success' : 'danger'} )
 				},
 				dataType: 'json'
 			});

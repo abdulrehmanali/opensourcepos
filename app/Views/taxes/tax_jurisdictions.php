@@ -107,7 +107,7 @@
 			submitHandler: function(form) {
 				$(form).ajaxSubmit({
 					success: function(response)	{
-						$.notify({ message: response.message }, { type: response.success ? 'success' : 'danger'});
+						$.notify( { icon: 'bi-bell-fill', message: response.message}, { type: response.success ? 'success' : 'danger'} )
 						$("#tax_jurisdictions").load('<?= esc("taxes/ajax_tax_jurisdictions") ?>', init_add_remove_tax_jurisdiction);
 					},
 					dataType: 'json'

@@ -2,6 +2,7 @@
 node_modules
 vendor
 public/resources
+public/images/menubar
 app/Config/email.php
 npm-debug.log*
 
@@ -69,7 +70,6 @@ system/
 *.orig
 *~
 *.~
-.env
 auth.json
 
 *.png
@@ -82,3 +82,4 @@ auth.json
 /app/Database/database.sql
 /writable/cache/settings
 /.env.bak
+config.bat

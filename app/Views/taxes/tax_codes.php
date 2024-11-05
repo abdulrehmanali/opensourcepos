@@ -103,7 +103,7 @@
 			submitHandler: function(form, event) {
 				$(form).ajaxSubmit({
 					success: function(response)	{
-						$.notify({ message: response.message }, { type: response.success ? 'success' : 'danger'});
+						$.notify( { icon: 'bi-bell-fill', message: response.message}, { type: response.success ? 'success' : 'danger'} )
 						$("#tax_codes").load('<?= "taxes/ajax_tax_codes" ?>', init_add_remove_tax_codes);
 					},
 					dataType: 'json'
