@@ -69,7 +69,6 @@ system/
 *.orig
 *~
 *.~
-.env
 auth.json
 
 *.png
@@ -82,3 +81,4 @@ auth.json
 /app/Database/database.sql
 /writable/cache/settings
 /.env.bak
+config.bat
