@@ -18,12 +18,15 @@
  * @var array $stock_locations
  * @var bool $logo_exists
  * @var string $image_path
+ * @var string $pdf_path
  * @var string $selected_low_sell_item
  * @var int $selected_low_sell_item_id
  * @var string $controller_name
  * @var array $config
  */
 ?>
+<?= view('partial/header') ?>
+
 <div id="required_fields_message"><?= lang('Common.fields_required_message') ?></div>
 
 <ul id="error_message_box" class="error_message_box"></ul>
@@ -396,17 +399,34 @@
             </div>
         </div>
 
-        <div class="form-group form-group-sm">
-            <?= form_label(lang('Items.allow_alt_description'), 'allow_alt_description', ['class' => 'control-label col-xs-3']) ?>
-            <div class='col-xs-1'>
-                <?= form_checkbox ([
-                    'name' => 'allow_alt_description',
-                    'id' => 'allow_alt_description',
-                    'value' => 1,
-                    'checked' => $item_info->allow_alt_description == 1
-                ]) ?>
-            </div>
-        </div>
+    <div class="form-group form-group-sm">
+			<?= form_label(lang('Items.pdf'), 'items_pdf', ['class' => 'control-label col-xs-3']) ?>
+			<div class='col-xs-8'>
+				<div class="fileinput <?= $logo_exists ? 'fileinput-exists' : 'fileinput-new' ?>" data-provides="fileinput">
+          <?=$pdf_path?"<a href='".lang('Items.view_pdf')."'></a>":''?>
+					<div>
+						<span class="btn btn-default btn-sm btn-file">
+							<span class="fileinput-new"><?= lang('Items.select_pdf') ?></span>
+							<span class="fileinput-exists"><?= lang('Items.change_pdf') ?></span>
+							<input type="file" name="items_pdf" accept="application/pdf">
+						</span>
+						<a href="#" class="btn btn-default btn-sm fileinput-exists" data-dismiss="fileinput"><?= lang('Items.remove_pdf') ?></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="form-group form-group-sm">
+			<?= form_label(lang('Items.allow_alt_description'), 'allow_alt_description', ['class' => 'control-label col-xs-3']) ?>
+			<div class='col-xs-1'>
+				<?= form_checkbox ([
+					'name' => 'allow_alt_description',
+					'id' => 'allow_alt_description',
+					'value' => 1,
+					'checked' => $item_info->allow_alt_description == 1
+				]) ?>
+			</div>
+		</div>
 
         <div class="form-group form-group-sm">
             <?= form_label(lang('Items.is_serialized'), 'is_serialized', ['class' => 'control-label col-xs-3']) ?>
@@ -678,3 +698,4 @@ $(document).ready(function()
     init_validation();
 });
 </script>
+<?= view('partial/footer') ?>

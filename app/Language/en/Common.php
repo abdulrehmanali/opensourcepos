@@ -1,6 +1,5 @@
 <?php
 return [
-    "address_1" => "Address 1",
     "address_2" => "Address 2",
     "admin" => "",
     "city" => "City",

@@ -63,3 +63,7 @@ Do **not** use below command on live deployments unless you want to tear everyth
 
 If you choose DigitalOcean:
 [Through this link](https://m.do.co/c/ac38c262507b), you will get a [**free $100, 60-day credit**](https://m.do.co/c/ac38c262507b). [Check the wiki](https://github.com/opensourcepos/opensourcepos/wiki/Getting-Started-installations) for further instructions on how to install the necessary components.
+
+docker compose -f docker-compose.dev.yml up
+
+Contribute controller config
