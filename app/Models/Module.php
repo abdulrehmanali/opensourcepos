@@ -100,7 +100,7 @@ class Module extends Model
     public function get_allowed_home_modules(int $person_id): ResultInterface
     {
         $menus = ['home', 'both'];
-        $builder = $this->db->table('modules');    //TODO: this is duplicated with the code below... probably refactor a method and just pass through whether home/office modules are needed.
+        $builder = $this->db->table(' ');    //TODO: this is duplicated with the code below... probably refactor a method and just pass through whether home/office modules are needed.
         $builder->join('permissions', 'permissions.permission_id = modules.module_id');
         $builder->join('grants', 'permissions.permission_id = grants.permission_id');
         $builder->where('person_id', $person_id);

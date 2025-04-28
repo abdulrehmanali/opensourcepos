@@ -300,11 +300,13 @@
                         highlight_row(ids);
                     }, 'json');
                 } else {
-                    // call hightlight function once after refresh
-                    options.load_callback = function () {
+                  if(options.load_callback) {
+                      // call hightlight function once after refresh
+                      options.load_callback = function () {
                         enable_actions();
                         highlight_row(id);
                     };
+                  }
                     refresh();
                 }
                 $.notify(message, {type: 'success' });

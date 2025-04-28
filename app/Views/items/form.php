@@ -83,7 +83,92 @@
                 </div>
             </div>
         </div>
+        <div class="form-group form-group-sm">
+            <?= form_label(lang('Items.cost_price'), 'cost_price', ['class' => 'required control-label col-xs-3']) ?>
+            <div class="col-xs-4">
+                <div class="input-group input-group-sm">
+                    <?php if(!is_right_side_currency_symbol()): ?>
+                        <span class="input-group-addon input-sm"><b><?= esc($config['currency_symbol']) ?></b></span>
+                    <?php endif; ?>
+                    <?= form_input ([
+                        'name' => 'cost_price',
+                        'id' => 'cost_price',
+                        'class' => 'form-control input-sm',
+                        'onClick' => 'this.select();',
+                        'value' => to_currency_no_money($item_info->cost_price)
+                    ]) ?>
+                    <?php if(is_right_side_currency_symbol()): ?>
+                        <span class="input-group-addon input-sm"><b><?= esc($config['currency_symbol']) ?></b></span>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
 
+        <div class="form-group form-group-sm">
+            <?= form_label(lang('Items.unit_price'), 'unit_price', ['class' => 'required control-label col-xs-3']) ?>
+            <div class='col-xs-4'>
+                <div class="input-group input-group-sm">
+                    <?php if (!is_right_side_currency_symbol()): ?>
+                        <span class="input-group-addon input-sm"><b><?= esc($config['currency_symbol']) ?></b></span>
+                    <?php endif; ?>
+                    <?= form_input ([
+                        'name' => 'unit_price',
+                        'id' => 'unit_price',
+                        'class' => 'form-control input-sm',
+                        'onClick' => 'this.select();',
+                        'value' => to_currency_no_money($item_info->unit_price)
+                    ]) ?>
+                    <?php if (is_right_side_currency_symbol()): ?>
+                        <span class="input-group-addon input-sm"><b><?= esc($config['currency_symbol']) ?></b></span>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <?php
+        foreach($stock_locations as $key => $location_detail)
+        {
+        ?>
+            <div class="form-group form-group-sm">
+                <?= form_label(lang('Items.quantity') . ' ' . $location_detail['location_name'], "quantity_$key", ['class' => 'required control-label col-xs-3']) ?>
+                <div class='col-xs-4'>
+                    <?= form_input ([
+                        'name' => "quantity_$key",
+                        'id' => "quantity_$key",
+                        'class' => 'required quantity form-control',
+                        'onClick' => 'this.select();',
+                        'value' => isset($item_info->item_id) ? to_quantity_decimals($location_detail['quantity']) : to_quantity_decimals(0)
+                    ]) ?>
+                </div>
+            </div>
+        <?php
+        }
+        ?>
+
+        <div class="form-group form-group-sm">
+            <?= form_label(lang('Items.receiving_quantity'), 'receiving_quantity', ['class' => 'required control-label col-xs-3']) ?>
+            <div class='col-xs-4'>
+                <?= form_input ([
+                    'name' => 'receiving_quantity',
+                    'id' => 'receiving_quantity',
+                    'class' => 'required form-control input-sm',
+                    'onClick' => 'this.select();',
+                    'value' => isset($item_info->item_id) ? to_quantity_decimals($item_info->receiving_quantity) : to_quantity_decimals(0)
+                ]) ?>
+            </div>
+        </div>
+
+        <div class="form-group form-group-sm">
+            <?= form_label(lang('Items.reorder_level'), 'reorder_level', ['class' => 'required control-label col-xs-3']) ?>
+            <div class='col-xs-4'>
+                <?= form_input ([
+                    'name' => 'reorder_level',
+                    'id' => 'reorder_level',
+                    'class' => 'form-control input-sm',
+                    'onClick' => 'this.select();',
+                    'value' => isset($item_info->item_id) ? to_quantity_decimals($item_info->reorder_level) : to_quantity_decimals(0)
+                ]) ?>
+            </div>
+        </div>
         <div id="attributes">
             <script type="application/javascript">
                 $('#attributes').load('<?= "items/attributes/$item_info->item_id" ?>');
@@ -191,48 +276,6 @@
             </div>
         </div>
 
-        <div class="form-group form-group-sm">
-            <?= form_label(lang('Items.cost_price'), 'cost_price', ['class' => 'required control-label col-xs-3']) ?>
-            <div class="col-xs-4">
-                <div class="input-group input-group-sm">
-                    <?php if(!is_right_side_currency_symbol()): ?>
-                        <span class="input-group-addon input-sm"><b><?= esc($config['currency_symbol']) ?></b></span>
-                    <?php endif; ?>
-                    <?= form_input ([
-                        'name' => 'cost_price',
-                        'id' => 'cost_price',
-                        'class' => 'form-control input-sm',
-                        'onClick' => 'this.select();',
-                        'value' => to_currency_no_money($item_info->cost_price)
-                    ]) ?>
-                    <?php if(is_right_side_currency_symbol()): ?>
-                        <span class="input-group-addon input-sm"><b><?= esc($config['currency_symbol']) ?></b></span>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-
-        <div class="form-group form-group-sm">
-            <?= form_label(lang('Items.unit_price'), 'unit_price', ['class' => 'required control-label col-xs-3']) ?>
-            <div class='col-xs-4'>
-                <div class="input-group input-group-sm">
-                    <?php if (!is_right_side_currency_symbol()): ?>
-                        <span class="input-group-addon input-sm"><b><?= esc($config['currency_symbol']) ?></b></span>
-                    <?php endif; ?>
-                    <?= form_input ([
-                        'name' => 'unit_price',
-                        'id' => 'unit_price',
-                        'class' => 'form-control input-sm',
-                        'onClick' => 'this.select();',
-                        'value' => to_currency_no_money($item_info->unit_price)
-                    ]) ?>
-                    <?php if (is_right_side_currency_symbol()): ?>
-                        <span class="input-group-addon input-sm"><b><?= esc($config['currency_symbol']) ?></b></span>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-
         <?php
         if(!$use_destination_based_tax)
         {
@@ -318,52 +361,6 @@
                 </div>
             </div>
         <?php endif; ?>
-
-        <?php
-        foreach($stock_locations as $key => $location_detail)
-        {
-        ?>
-            <div class="form-group form-group-sm">
-                <?= form_label(lang('Items.quantity') . ' ' . $location_detail['location_name'], "quantity_$key", ['class' => 'required control-label col-xs-3']) ?>
-                <div class='col-xs-4'>
-                    <?= form_input ([
-                        'name' => "quantity_$key",
-                        'id' => "quantity_$key",
-                        'class' => 'required quantity form-control',
-                        'onClick' => 'this.select();',
-                        'value' => isset($item_info->item_id) ? to_quantity_decimals($location_detail['quantity']) : to_quantity_decimals(0)
-                    ]) ?>
-                </div>
-            </div>
-        <?php
-        }
-        ?>
-
-        <div class="form-group form-group-sm">
-            <?= form_label(lang('Items.receiving_quantity'), 'receiving_quantity', ['class' => 'required control-label col-xs-3']) ?>
-            <div class='col-xs-4'>
-                <?= form_input ([
-                    'name' => 'receiving_quantity',
-                    'id' => 'receiving_quantity',
-                    'class' => 'required form-control input-sm',
-                    'onClick' => 'this.select();',
-                    'value' => isset($item_info->item_id) ? to_quantity_decimals($item_info->receiving_quantity) : to_quantity_decimals(0)
-                ]) ?>
-            </div>
-        </div>
-
-        <div class="form-group form-group-sm">
-            <?= form_label(lang('Items.reorder_level'), 'reorder_level', ['class' => 'required control-label col-xs-3']) ?>
-            <div class='col-xs-4'>
-                <?= form_input ([
-                    'name' => 'reorder_level',
-                    'id' => 'reorder_level',
-                    'class' => 'form-control input-sm',
-                    'onClick' => 'this.select();',
-                    'value' => isset($item_info->item_id) ? to_quantity_decimals($item_info->reorder_level) : to_quantity_decimals(0)
-                ]) ?>
-            </div>
-        </div>
 
         <div class="form-group form-group-sm">
             <?= form_label(lang('Items.description'), 'description', ['class' => 'control-label col-xs-3']) ?>
@@ -496,12 +493,21 @@
         </div>
 
     </fieldset>
+    <div class="text-center">
+      <button class="btn btn-primary btn-block" id="submit">Submit</button>
+    </div>
 <?= form_close() ?>
 
 <script type="application/javascript">
 //validation and submit handling
 $(document).ready(function()
 {
+    document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey && e.key === 's') {
+      e.preventDefault(); // Stop the browser's "Save page" action
+      $('#item_form').submit();
+    }
+  });
     $('#new').click(function() {
         let stay_open = true;
         $('#item_form').submit();
@@ -585,8 +591,9 @@ $(document).ready(function()
                         {
                             dialog_support.hide();
                         }
-                        table_support.handle_submit('<?= 'items' ?>', response, stay_open);
-                        init_validation();
+                        // table_support.handle_submit('<?= 'items' ?>', response, stay_open);
+                        // init_validation();
+                        location.replace('/items')
                     },
                     dataType: 'json'
                 });

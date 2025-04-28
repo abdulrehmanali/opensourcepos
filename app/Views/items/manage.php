@@ -78,10 +78,10 @@ $(document).ready(function()
         <span class="glyphicon glyphicon-import">&nbsp;</span><?= lang('Common.import_csv') ?>
     </button>
 
-    <button class='btn btn-info btn-sm pull-right modal-dlg' data-btn-new='<?= lang('Common.new') ?>' data-btn-submit='<?= lang('Common.submit') ?>' data-href='<?= "$controller_name/view" ?>'
+    <a class='btn btn-info btn-sm pull-right' href='<?= "$controller_name/view" ?>'
             title='<?= lang(ucfirst($controller_name) .".new") ?>'>
         <span class="glyphicon glyphicon-tag">&nbsp;</span><?= lang(ucfirst($controller_name) .".new") ?>
-    </button>
+    </a>
 </div>
 
 <div id="toolbar">
