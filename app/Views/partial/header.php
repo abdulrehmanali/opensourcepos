@@ -21,12 +21,12 @@ $request = Services::request();
     
 	<?php if (ENVIRONMENT == 'development' || get_cookie('debug') == 'true' || $request->getGet('debug') == 'true') : ?>
 		<!-- inject:debug:css -->
-		<link rel="stylesheet" href="resources/css/jquery-ui-fe010342cb.css">
+		<link rel="stylesheet" href="resources/css/jquery-ui-49d1c743e3.css">
 		<link rel="stylesheet" href="resources/css/bootstrap-dialog-1716ef6e7c.css">
 		<link rel="stylesheet" href="resources/css/jasny-bootstrap-40bf85f3ed.css">
 		<link rel="stylesheet" href="resources/css/bootstrap-datetimepicker-66374fba71.css">
 		<link rel="stylesheet" href="resources/css/bootstrap-select-66d5473b84.css">
-		<link rel="stylesheet" href="resources/css/bootstrap-table-ed9d1a3360.css">
+		<link rel="stylesheet" href="resources/css/bootstrap-table-beee084f97.css">
 		<link rel="stylesheet" href="resources/css/bootstrap-table-sticky-header-07d65e7533.css">
 		<link rel="stylesheet" href="resources/css/daterangepicker-85523b7dfe.css">
 		<link rel="stylesheet" href="resources/css/chartist-c19aedb81a.css">
@@ -45,17 +45,17 @@ $request = Services::request();
 		<!-- inject:debug:js -->
 		<script src="resources/js/jquery-12e87d2f3a.js"></script>
 		<script src="resources/js/jquery-4fa896f615.form.js"></script>
-		<script src="resources/js/jquery-a0350e8820.validate.js"></script>
-		<script src="resources/js/jquery-ui-cbc65ff85e.js"></script>
+		<script src="resources/js/jquery-d3cc566e04.validate.js"></script>
+		<script src="resources/js/jquery-ui-c0267985b7.js"></script>
 		<script src="resources/js/bootstrap-894d79839f.js"></script>
 		<script src="resources/js/bootstrap-dialog-27123abb65.js"></script>
 		<script src="resources/js/jasny-bootstrap-7c6d7b8adf.js"></script>
 		<script src="resources/js/bootstrap-datetimepicker-25e39b7ef8.js"></script>
 		<script src="resources/js/bootstrap-select-b01896a67b.js"></script>
-		<script src="resources/js/bootstrap-table-bdb06552ea.js"></script>
-		<script src="resources/js/bootstrap-table-export-6389dc2aa5.js"></script>
-		<script src="resources/js/bootstrap-table-mobile-fc655b68ab.js"></script>
-		<script src="resources/js/bootstrap-table-sticky-header-cb4d83d172.js"></script>
+		<script src="resources/js/bootstrap-table-4c3352caf1.js"></script>
+		<script src="resources/js/bootstrap-table-export-f57325d9d4.js"></script>
+		<script src="resources/js/bootstrap-table-mobile-6c4f14ac24.js"></script>
+		<script src="resources/js/bootstrap-table-sticky-header-46af2df131.js"></script>
 		<script src="resources/js/moment-d65dc6d2e6.min.js"></script>
 		<script src="resources/js/daterangepicker-048c56a690.js"></script>
 		<script src="resources/js/es6-promise-855125e6f5.js"></script>
@@ -63,7 +63,7 @@ $request = Services::request();
 		<script src="resources/js/html2canvas-e1d3a8d7cd.js"></script>
 		<script src="resources/js/jspdf-6eb90bf5a3.umd.js"></script>
 		<script src="resources/js/jspdf-4f52bd767f.plugin.autotable.js"></script>
-		<script src="resources/js/tableExport-0df60917ca.min.js"></script>
+		<script src="resources/js/tableExport-3d506dfa61.min.js"></script>
 		<script src="resources/js/chartist-8a7ecb4445.js"></script>
 		<script src="resources/js/chartist-plugin-pointlabels-0a1ab6aa4e.js"></script>
 		<script src="resources/js/chartist-plugin-tooltip-116cb48831.js"></script>
@@ -75,12 +75,12 @@ $request = Services::request();
 		<script src="resources/js/bootstrap-toggle-1c7a19a049.js"></script>
 		<script src="resources/js/clipboard-908af414ab.js"></script>
 		<script src="resources/js/imgpreview-1db063409f.full.jquery.js"></script>
-		<script src="resources/js/manage_tables-256e08c761.js"></script>
+		<script src="resources/js/manage_tables-9be5a76d8e.js"></script>
 		<script src="resources/js/nominatim-4e238f4a89.autocomplete.js"></script>
 		<!-- endinject -->
 	<?php else : ?>
 		<!--inject:prod:css -->
-		<link rel="stylesheet" href="resources/opensourcepos-8e34d6a398.min.css">
+		<link rel="stylesheet" href="resources/opensourcepos-1a078a830f.min.css">
 		<!-- endinject -->
 
 		<!-- Tweaks to the UI for a particular theme should drop here  -->
@@ -89,7 +89,7 @@ $request = Services::request();
 	<?php } ?>
 		<!-- inject:prod:js -->
 		<script src="resources/jquery-2c872dbe60.min.js"></script>
-		<script src="resources/opensourcepos-39c74204a5.min.js"></script>
+		<script src="resources/opensourcepos-66d2329f3d.min.js"></script>
 		<!-- endinject -->
 	<?php endif; ?>
 
@@ -152,6 +152,7 @@ $request = Services::request();
                 </div>
             </div>
         </div>
-
-        <div class="container">
-            <div class="row">
+			</div>
+		</div>
+		<div class="container">
+			<div class="row">

@@ -22,25 +22,21 @@
     top: 5px;
   }
 </style>
-<?php
-if ($definition_names || count($definition_names)) {
-?>
 <div class="form-group form-group-sm">
-    <?= form_label(lang('Attributes.definition_name'), 'definition_name_label', ['class' => 'control-label col-xs-3']) ?>
-    <div class='col-xs-8'>
-        <?= form_dropdown([
-            'name' => 'definition_name',
-            'options' => $definition_names,
-            'selected' => -1,
-            'class' => 'form-control',
-            'id' => 'definition_name'
-        ]) ?>
-    </div>
+  <?= form_label(lang('Attributes.definition_name'), 'definition_name_label', ['class' => 'control-label col-xs-3']) ?>
+  <div class='col-xs-8'>
+    <?= form_dropdown([
+      'name' => 'definition_name',
+      'options' => $definition_names,
+      'selected' => -1,
+      'class' => 'form-control',
+      'id' => 'definition_name'
+    ]) ?>
+  </div>
 </div>
 <?php
-}
 foreach ($definition_values as $definition_id => $definition_value) {
-  if ($definition_id == -1) {
+  if (!$definition_value['definition_id']) {
     continue;
   }
 ?>
