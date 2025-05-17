@@ -13,6 +13,12 @@ use App\Models\Employee;
 ?>
 <?= view('partial/header') ?>
 
+<?php if (session()->has('error')): ?>
+    <div class="alert alert-danger"><?= session('error') ?></div>
+<?php elseif (session()->has('success')): ?>
+    <div class="alert alert-success"><?= session('success') ?></div>
+<?php endif; ?>
+
 <script type="application/javascript">
 $(document).ready(function()
 {

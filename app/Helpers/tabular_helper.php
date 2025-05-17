@@ -439,7 +439,7 @@ function get_items_manage_table_headers(): string
     {
         $headers[] = [$definition_id => $definition_name, 'sortable' => false];
     }
-
+    $headers[] = ['duplicate' => '', 'escape' => false];
     $headers[] = ['inventory' => '', 'escape' => false];
     $headers[] = ['stock' => '', 'escape' => false];
 
@@ -543,6 +543,14 @@ function get_item_data_row(object $item): array
             [
                 'class' => '',
                 'title' => lang(ucfirst($controller) . ".update")
+            ]
+        ),
+        'duplicate' => anchor(
+            "$controller/duplicate/$item->item_id",
+            '<span class="glyphicon glyphicon-duplicate"></span>',
+            [
+                'class' => '',
+                'title' => lang(ucfirst($controller) . ".duplicate")
             ]
         )
     ];

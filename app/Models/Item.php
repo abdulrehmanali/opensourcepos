@@ -1213,4 +1213,29 @@ class Item extends Model
 
 		return $item_name;
 	}
+
+  public function duplicate_item($id) {
+    // Fetch the original item
+    $item = $this->get_where($this->table, ['id' => $id])->row_array();
+
+    if (!$item) {
+      return false; // Item not found
+    }
+
+    // Remove primary key and timestamps (if any)
+    unset($item['id']);
+    if (isset($item['created_at'])) unset($item['created_at']);
+    if (isset($item['updated_at'])) unset($item['updated_at']);
+
+    // Optionally modify the name to indicate duplication
+    if (isset($item['name'])) {
+      $item['name'] .= ' (Copy)';
+    }
+
+    // Insert the duplicated item
+    $this->insert($this->table, $item);
+
+    // Return the new item's ID
+    return $this->insert_id();
+  }
 }

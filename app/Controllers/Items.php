@@ -17,8 +17,10 @@ use App\Models\Tax_category;
 
 use CodeIgniter\Images\Handlers\BaseHandler;
 use CodeIgniter\HTTP\DownloadResponse;
+use CodeIgniter\HTTP\RedirectResponse;
 use Config\OSPOS;
 use Config\Services;
+use PHPUnit\Util\Json;
 use ReflectionException;
 
 require_once('Secure_Controller.php');
@@ -267,7 +269,7 @@ class Items extends Secure_Controller
 	 * @param int $item_id
 	 * @return void
 	 */
-	public function getView(int $item_id = NEW_ENTRY): void	//TODO: Long function. Perhaps we need to refactor out some methods.
+	public function getView(int $item_id = NEW_ENTRY, bool $is_duplicate = false): void	//TODO: Long function. Perhaps we need to refactor out some methods.
 	{
 		$item_id ??= NEW_ENTRY;
 
@@ -334,6 +336,9 @@ class Items extends Secure_Controller
 			&& !($this->config['derive_sale_quantity'] === '1')
 		);
 
+		if ($is_duplicate) {
+			$item_info->item_id = NEW_ENTRY;
+		}
 		$data['item_info'] = $item_info;
 
 		$suppliers = ['' => lang('Items.none')];
@@ -1532,5 +1537,38 @@ class Items extends Secure_Controller
 
 			$this->attribute->saveAttributeLink($itemId, $definitionId, $attributeId);
 		}
+	}
+
+	/**
+	 * Prepares the duplication form by pre-filling it with data from an existing item.
+	 *
+	 * @param int $item_id
+	 * @return void
+	 */
+	public function getDuplicate(int $item_id): void
+	{
+		// $item_info = $this->item->get_info($item_id);
+		// if (!$item_info || empty($item_info->item_id)) {
+		// 	redirect()->to(base_url('items'))->with('error', lang('Items.error_adding_updating'));
+		// 	return;
+		// }
+
+		// // Convert to array and reset necessary fields
+		// $new_item_data = get_object_vars($item_info);
+		// foreach ($new_item_data as $key => $value) {
+		// 	if (!in_array($key, $this->item->allowedFields)) {
+		// 		unset($new_item_data[$key]);
+		// 	}
+		// }
+
+		// $new_item_data['name'] .= ' (Copy)';
+		// $new_item_data['deleted'] = 0;
+		// $new_item_data['item_type'] = ITEM;
+		// $new_item_data['stock_type'] = HAS_STOCK;
+
+		// // Set all fields at once in $_POST
+		// $this->request->setGlobal('post', $new_item_data);
+
+		$this->getView($item_id, true);
 	}
 }
