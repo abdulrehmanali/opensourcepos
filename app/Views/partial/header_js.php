@@ -71,8 +71,9 @@
     });
 
     var submit = $.fn.submit;
-
     $.fn.submit = function() {
+          console.log("submit")
+
         setup_csrf_token();
         submit.apply(this, arguments);
     };

@@ -495,7 +495,7 @@ function get_item_data_row(object $item): array
 
         if(sizeof($images) > 0)
         {
-            $image .= '<a class="rollover" href="' . base_url($images[0]) . '"><img alt="Image thumbnail" src="' . site_url('items/PicThumb/' . pathinfo($images[0], PATHINFO_BASENAME)) . '"></a>';
+            $image .= '<a class="rollover" href="' . base_url($images[0]) . '"><img style="max-height:120px" alt="Image thumbnail" src="' . site_url('uploads/item_pics/' . pathinfo($images[0], PATHINFO_BASENAME)) . '"></a>';
         }
     }
 

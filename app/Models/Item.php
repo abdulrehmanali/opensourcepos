@@ -8,6 +8,8 @@ use Config\OSPOS;
 use ReflectionException;
 use stdClass;
 
+use function PHPSTORM_META\map;
+
 /**
  * Item class
  *
@@ -41,7 +43,9 @@ class Item extends Model
 		'qty_per_pack',
 		'pack_name',
 		'low_sell_item_id',
-		'hsn_code'
+		'hsn_code',
+    'single_unit_quantity',
+    'pack_name'
 	];
 
 

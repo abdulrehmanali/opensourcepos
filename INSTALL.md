@@ -67,3 +67,4 @@ If you choose DigitalOcean:
 docker compose -f docker-compose.dev.yml up
 
 Contribute controller config
+docker-compose -f docker-compose.dev.yml build ospos

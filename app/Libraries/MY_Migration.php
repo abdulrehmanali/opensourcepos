@@ -25,7 +25,7 @@ class MY_Migration extends MigrationRunner
     public function get_latest_migration(): int
     {
         $migrations = $this->findMigrations();
-        return basename(end($migrations)->version);
+        return (int) basename(end($migrations)->version);
     }
 
     /**

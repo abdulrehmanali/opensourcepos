@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @var string $controller_name
  * @var array $modes
@@ -15,6 +16,11 @@
  * @var float $customer_discount
  * @var float $customer_total
  * @var string $customer_required
+ * @var string $customer_email
+ * @var string $customer_phone
+ * @var string $customer_address
+ * @var string $customer_location
+ * @var array $customer_rewards 
  * @var float|int $item_count
  * @var float|int $total_units
  * @var float $subtotal
@@ -45,1003 +51,1248 @@ use App\Models\Employee;
 <?= view('partial/header') ?>
 
 <?php
-if(isset($error))
-{
-    echo "<div class='alert alert-dismissible alert-danger'>$error</div>";
+if (isset($error)) {
+  echo "<div class='alert alert-dismissible alert-danger'>$error</div>";
 }
 
-if(!empty($warning))
-{
-    echo "<div class='alert alert-dismissible alert-warning'>$warning</div>";
+if (!empty($warning)) {
+  echo "<div class='alert alert-dismissible alert-warning'>$warning</div>";
 }
 
-if(isset($success))
-{
-    echo "<div class='alert alert-dismissible alert-success'>$success</div>";
+if (isset($success)) {
+  echo "<div class='alert alert-dismissible alert-success'>$success</div>";
 }
 ?>
-
-<div id="register_wrapper">
-
-<!-- Top register controls -->
+<div class="row">
+  <div id="register_wrapper" class="col-sm-7">
+    <!-- Top register controls -->
     <?= form_open("$controller_name/changeMode", ['id' => 'mode_form', 'class' => 'form-horizontal panel panel-default']) ?>
-        <div class="panel-body form-group">
-            <ul>
-                <li class="pull-left first_li">
-                    <label class="control-label"><?= lang(ucfirst($controller_name) .'.mode') ?></label>
-                </li>
-                <li class="pull-left">
-                    <?= form_dropdown('mode', $modes, $mode, ['onchange' => "$('#mode_form').submit();", 'class' => 'selectpicker show-menu-arrow', 'data-style' => 'btn-default btn-sm', 'data-width' => 'fit']) ?>
-                </li>
-                <?php
-                if($config['dinner_table_enable'])
-                {
-                ?>
-                    <li class="pull-left first_li">
-                        <label class="control-label"><?= lang(ucfirst($controller_name) .'.table') ?></label>
-                    </li>
-                    <li class="pull-left">
-                        <?= form_dropdown('dinner_table', $empty_tables, $selected_table, ['onchange'=>"$('#mode_form').submit();", 'class' => 'selectpicker show-menu-arrow', 'data-style' => 'btn-default btn-sm', 'data-width' => 'fit']) ?>
-                    </li>
-                <?php
-                }
-                if(count($stock_locations) > 1)
-                {
-                ?>
-                    <li class="pull-left">
-                        <label class="control-label"><?= lang(ucfirst($controller_name) .'.stock_location') ?></label>
-                    </li>
-                    <li class="pull-left">
-                        <?= form_dropdown('stock_location', $stock_locations, $stock_location, ['onchange' => "$('#mode_form').submit();", 'class' => 'selectpicker show-menu-arrow', 'data-style' => 'btn-default btn-sm', 'data-width' => 'fit']) ?>
-                    </li>
-                <?php
-                }
-                ?>
+    <div class="panel-body form-group">
+      <ul>
+        <li class="pull-left first_li">
+          <label class="control-label"><?= lang(ucfirst($controller_name) . '.mode') ?></label>
+        </li>
+        <li class="pull-left">
+          <?= form_dropdown('mode', $modes, $mode, ['onchange' => "$('#mode_form').submit();", 'class' => 'selectpicker show-menu-arrow', 'data-style' => 'btn-default btn-sm', 'data-width' => 'fit']) ?>
+        </li>
+        <?php
+        if ($config['dinner_table_enable']) {
+        ?>
+          <li class="pull-left first_li">
+            <label class="control-label"><?= lang(ucfirst($controller_name) . '.table') ?></label>
+          </li>
+          <li class="pull-left">
+            <?= form_dropdown('dinner_table', $empty_tables, $selected_table, ['onchange' => "$('#mode_form').submit();", 'class' => 'selectpicker show-menu-arrow', 'data-style' => 'btn-default btn-sm', 'data-width' => 'fit']) ?>
+          </li>
+        <?php
+        }
+        if (count($stock_locations) > 1) {
+        ?>
+          <li class="pull-left">
+            <label class="control-label"><?= lang(ucfirst($controller_name) . '.stock_location') ?></label>
+          </li>
+          <li class="pull-left">
+            <?= form_dropdown('stock_location', $stock_locations, $stock_location, ['onchange' => "$('#mode_form').submit();", 'class' => 'selectpicker show-menu-arrow', 'data-style' => 'btn-default btn-sm', 'data-width' => 'fit']) ?>
+          </li>
+        <?php
+        }
+        ?>
 
-                <li class="pull-right">
-                    <button class='btn btn-default btn-sm modal-dlg' id='show_suspended_sales_button' data-href="<?= esc("$controller_name/suspended") ?>"
-                            title="<?= lang(ucfirst($controller_name) .'.suspended_sales') ?>">
-                        <span class="glyphicon glyphicon-align-justify">&nbsp</span><?= lang(ucfirst($controller_name) .'.suspended_sales') ?>
-                    </button>
-                </li>
+        <li class="pull-right">
+          <button class='btn btn-default btn-sm modal-dlg' id='show_suspended_sales_button' data-href="<?= esc("$controller_name/suspended") ?>"
+            title="<?= lang(ucfirst($controller_name) . '.suspended_sales') ?>">
+            <span class="glyphicon glyphicon-align-justify">&nbsp</span><?= lang(ucfirst($controller_name) . '.suspended_sales') ?>
+          </button>
+        </li>
 
-                <?php
-                $employee = model(Employee::class);
-                if($employee->has_grant('reports_sales', session('person_id')))
-                {
-                ?>
-                    <li class="pull-right">
-                        <?= anchor("$controller_name/manage", '<span class="glyphicon glyphicon-list-alt">&nbsp</span>' . lang(ucfirst($controller_name) .'.takings'),
-                                    array('class' => 'btn btn-primary btn-sm', 'id' => 'sales_takings_button', 'title' => lang(ucfirst($controller_name) .'.takings'))) ?>
-                    </li>
-                <?php
-                }
-                ?>
-            </ul>
-        </div>
+        <?php
+        $employee = model(Employee::class);
+        if ($employee->has_grant('reports_sales', session('person_id'))) {
+        ?>
+          <li class="pull-right">
+            <?= anchor(
+              "$controller_name/manage",
+              '<span class="glyphicon glyphicon-list-alt">&nbsp</span>' . lang(ucfirst($controller_name) . '.takings'),
+              array('class' => 'btn btn-primary btn-sm', 'id' => 'sales_takings_button', 'title' => lang(ucfirst($controller_name) . '.takings'))
+            ) ?>
+          </li>
+        <?php
+        }
+        ?>
+      </ul>
+    </div>
     <?= form_close() ?>
 
-    <?php $tabindex = 0; ?>
+    <?php $tabindex = 7; ?>
 
+    <div class="panel-body">
+      <div class="row">
+        <div class="col-sm-4">
+          <div class="form-group form-group-sm">
+            <?= form_label(lang('Vehicle No'), 'vehicle_no', ['class' => 'required control-label', 'style' => 'width:100%;']) ?>
+            <?= form_input([
+              'name' => 'vehicle_no',
+              'id' => 'vehicle_no',
+              'class' => 'form-control input-sm',
+              'value' => isset($customer_vehicle_no) ? $customer_vehicle_no : '',
+              'tabindex' => "1"
+            ]) ?>
+          </div>
+          <div class="form-group form-group-sm">
+            <?= form_label('Kilometer', 'vehicle_kilometer', ['class' => 'control-label', 'style' => 'width:100%;']) ?>
+            <?= form_input([
+              'name' => 'vehicle_kilometer',
+              'id' => 'vehicle_kilometer',
+              'class' => 'form-control input-sm',
+              'value' => isset($customer_kilometer) ? $customer_kilometer : '',
+              'type' => 'number',
+              'tabindex' => "4"
+            ]) ?>
+          </div>
+          <div class="form-group form-group-sm">
+            <?= form_label('Next Visit', 'vehicle_next_visit', ['class' => 'control-label', 'style' => 'width:100%;']) ?>
+            <?= form_input([
+              'type' => 'date',
+              'name' => 'vehicle_next_visit',
+              'id' => 'vehicle_next_visit',
+              'class' => 'form-control input-sm',
+              'value' => isset($customer_next_visit) ? $customer_next_visit : '',
+              'tabindex' => "7"
+            ]) ?>
+          </div>
+        </div>
+
+        <div class="col-sm-4">
+          <div class="form-group form-group-sm">
+            <?= form_label(lang('Customer Name'), 'customer_name', ['class' => 'required control-label', 'style' => 'width:100%;']) ?>
+            <?= form_input([
+              'name' => 'customer_name',
+              'id' => 'customer_name',
+              'class' => 'form-control input-sm',
+              'value' => isset($customer) ? $customer : '',
+              'tabindex' => "2"
+            ]) ?>
+          </div>
+          <div class="form-group form-group-sm">
+            <?= form_label('Avg KM / Day', 'vehicle_avg_km_day', ['class' => 'control-label', 'style' => 'width:100%;']) ?>
+            <?= form_input([
+              'name' => 'vehicle_avg_km_day',
+              'id' => 'vehicle_avg_km_day',
+              'type' => 'number',
+              'class' => 'form-control input-sm',
+              'value' => isset($customer_avg_km_day) ? $customer_avg_km_day : '',
+              'tabindex' => "6"
+            ]) ?>
+          </div>
+        </div>
+
+        <div class="col-sm-4">
+          <div class="form-group form-group-sm">
+            <?= form_label(lang('Common.phone_number'), 'phone_number', ['class' => 'required control-label', 'style' => 'width:100%;']) ?>
+            <?= form_input([
+              'name' => 'phone_number',
+              'id' => 'phone_number',
+              'type' => 'number',
+              'class' => 'form-control input-sm',
+              'value' => isset($customer_phone) ? $customer_phone : '',
+              'tabindex' => "3"
+            ]) ?>
+          </div>
+          <div class="form-group form-group-sm">
+            <?= form_label('Avg KM/ Oil', 'vehicle_avg_oil_km', ['class' => 'control-label', 'style' => 'width:100%;']) ?>
+            <?= form_input([
+              'name' => 'vehicle_avg_oil_km',
+              'id' => 'vehicle_avg_oil_km',
+              'type' => 'number',
+              'class' => 'form-control input-sm',
+              'value' => isset($customer_avg_oil_km) ? $customer_avg_oil_km : '',
+              'tabindex' => "6"
+            ]) ?>
+          </div>
+        </div>
+      </div>
+    </div>
     <?= form_open("$controller_name/add", ['id' => 'add_item_form', 'class' => 'form-horizontal panel panel-default']) ?>
-        <div class="panel-body form-group">
-            <ul>
-                <li class="pull-left first_li">
-                    <label for="item" class='control-label'><?= lang(ucfirst($controller_name) .'.find_or_scan_item_or_receipt') ?></label>
-                </li>
-                <li class="pull-left">
-                    <?= form_input (['name' => 'item', 'id' => 'item', 'class' => 'form-control input-sm', 'size' => '50', 'tabindex' => ++$tabindex]) ?>
-                    <span class="ui-helper-hidden-accessible" role="status"></span>
-                </li>
-                <li class="pull-right">
-                    <button id='new_item_button' class='btn btn-info btn-sm pull-right modal-dlg' data-btn-new="<?= lang('Common.new') ?>" data-btn-submit="<?= lang('Common.submit') ?>" data-href='<?= "items/view" ?>'
-                            title="<?= lang(ucfirst($controller_name) .".new_item") ?>">
-                        <span class="glyphicon glyphicon-tag">&nbsp</span><?= lang(ucfirst($controller_name) .".new_item") ?>
-                    </button>
-                </li>
-            </ul>
+      <label for="item" class='control-label'><?= lang(ucfirst($controller_name) . '.find_or_scan_item_or_receipt') ?></label>
+      <div class="panel-body row" style="display: flex;justify-content: center;align-items: end;">
+        <div class="col-sm-4">
+          <label class="control-label" for="item">Product Name</label>
+          <?= form_input(['name' => 'item', 'id' => 'item', 'class' => 'form-control input-sm', 'size' => '50', 'tabindex' => ++$tabindex]) ?>
+          <span class="ui-helper-hidden-accessible" role="status"></span>
         </div>
-    <?= form_close() ?>
+        <div class="col-sm-2">
+          <label class="control-label" for="price">Price</label>
+          <?= form_input(['name' => 'price', 'id' => 'price', 'class' => 'form-control input-sm', 'size' => '10', 'tabindex' => ++$tabindex, 'placeholder' => '0.00', 'type' => 'number', 'step' => '0.01', 'min' => '0']) ?>
+        </div>
+        <div class="col-sm-2">
+          <label class="control-label" for="quantity">Quantity</label>
+          <div class="input-group">
+            <?= form_input(['name' => 'quantity', 'id' => 'quantity', 'class' => 'form-control input-sm', 'size' => '5', 'tabindex' => ++$tabindex, 'placeholder' => '1', 'type' => 'number', 'step' => '1', 'min' => '1']) ?>
+            <span class="input-group-addon" style="padding:0;">
+              <?= form_dropdown(
+                  'unit',
+                  ['pcs' => 'pcs', 'kg' => 'kg', 'ltr' => 'ltr', 'mL' => 'mL'],
+                  isset($item['unit']) ? $item['unit'] : 'pcs',
+                  ['class' => 'form-control input-sm', 'id' => 'unit', 'tabindex' => ++$tabindex, 'style' => 'width: 45px;padding: 0;height: 33px;border: 0;']
+              ) ?>
+            </span>
+          </div>
+        </div>
+        <div class="col-sm-2">
+          <label class="control-label" for="discount">Discount</label>
+          <div class="input-group">
+            <?= form_input(['name' => 'discount', 'id' => 'discount', 'class' => 'form-control input-sm', 'value' => '0.00', 'tabindex' => ++$tabindex, 'onclick' => 'this.select();']) ?>
+            <span class="input-group-btn">
+              <input type="checkbox" name="discount_toggle" value="1" id="discount_toggle" data-toggle="toggle" data-size="small" data-onstyle="success" data-on="<b>Rs</b>" data-off="<b>%</b>" data-line="1">
+            </span>
+          </div>
+        </div>
+        <div class="col-sm-2">
+          <label class="control-label" for="add_item">&nbsp;</label>
+          <button type="submit" class="btn btn-primary btn-sm" id="add_item" tabindex="<?= ++$tabindex ?>">
+            <span class="glyphicon glyphicon-plus"></span> Add
+          </button>
+        </div>
+      </div>
+<?= form_close() ?>
 
 
-<!-- Sale Items List -->
+    <!-- Sale Items List -->
 
     <table class="sales_table_100" id="register">
-        <thead>
+      <thead>
+        <tr>
+          <th style="width: 5%; "><?= lang('Common.delete') ?></th>
+          <th style="width: 15%;"><?= lang(ucfirst($controller_name) . '.item_number') ?></th>
+          <th style="width: 30%;"><?= lang(ucfirst($controller_name) . '.item_name') ?></th>
+          <th style="width: 10%;"><?= lang(ucfirst($controller_name) . '.price') ?></th>
+          <th style="width: 10%;"><?= lang(ucfirst($controller_name) . '.quantity') ?></th>
+          <th style="width: 15%;"><?= lang(ucfirst($controller_name) . '.discount') ?></th>
+          <th style="width: 10%;"><?= lang(ucfirst($controller_name) . '.total') ?></th>
+          <th style="width: 5%; "><?= lang(ucfirst($controller_name) . '.update') ?></th>
+        </tr>
+      </thead>
+
+      <tbody id="cart_contents">
+        <?php
+        if (count($cart) == 0) {
+        ?>
+          <tr>
+            <td colspan='8'>
+              <div class='alert alert-dismissible alert-info'><?= lang(ucfirst($controller_name) . '.no_items_in_cart') ?></div>
+            </td>
+          </tr>
+          <?php
+        } else {
+          foreach (array_reverse($cart, true) as $line => $item) {
+          ?>
+            <?= form_open("$controller_name/editItem/$line", ['class' => 'form-horizontal', 'id' => "cart_$line"]) ?>
             <tr>
-                <th style="width: 5%; "><?= lang('Common.delete') ?></th>
-                <th style="width: 15%;"><?= lang(ucfirst($controller_name) .'.item_number') ?></th>
-                <th style="width: 30%;"><?= lang(ucfirst($controller_name) .'.item_name') ?></th>
-                <th style="width: 10%;"><?= lang(ucfirst($controller_name) .'.price') ?></th>
-                <th style="width: 10%;"><?= lang(ucfirst($controller_name) .'.quantity') ?></th>
-                <th style="width: 15%;"><?= lang(ucfirst($controller_name) .'.discount') ?></th>
-                <th style="width: 10%;"><?= lang(ucfirst($controller_name) .'.total') ?></th>
-                <th style="width: 5%; "><?= lang(ucfirst($controller_name) .'.update') ?></th>
-            </tr>
-        </thead>
-
-        <tbody id="cart_contents">
-            <?php
-            if(count($cart) == 0)
-            {
-            ?>
-                <tr>
-                    <td colspan='8'>
-                        <div class='alert alert-dismissible alert-info'><?= lang(ucfirst($controller_name) .'.no_items_in_cart') ?></div>
-                    </td>
-                </tr>
-            <?php
-            }
-            else
-            {
-                foreach(array_reverse($cart, true) as $line => $item)
-                {
-            ?>
-                    <?= form_open("$controller_name/editItem/$line", ['class' => 'form-horizontal', 'id' => "cart_$line"]) ?>
-                        <tr>
-                            <td>
-                                <?php
-                                    echo anchor("$controller_name/deleteItem/$line", '<span class="glyphicon glyphicon-trash"></span>');
-                                    echo form_hidden('location', (string)$item['item_location']);
-                                    echo form_input (['type' => 'hidden', 'name' => 'item_id', 'value'=>$item['item_id']]);
-                                ?>
-                            </td>
-                            <?php
-                            if($item['item_type'] == ITEM_TEMP)
-                            {
-                            ?>
-                                <td><?= form_input (['name' => 'item_number', 'id' => 'item_number','class' => 'form-control input-sm', 'value'=>$item['item_number'], 'tabindex'=>++$tabindex]) ?></td>
-                                <td style="align: center;">
-                                    <?= form_input (['name' => 'name','id' => 'name', 'class' => 'form-control input-sm', 'value'=>$item['name'], 'tabindex'=>++$tabindex]) ?>
-                                </td>
-                            <?php
-                            }
-                            else
-                            {
-                            ?>
-                                <td><?= esc($item['item_number']) ?></td>
-                                <td style="align: center;">
-                                    <?= esc($item['name']) . ' '. implode(' ', [$item['attribute_values'], $item['attribute_dtvalues']]) ?>
-                                    <br/>
-                                    <?php if ($item['stock_type'] == '0'): echo '[' . to_quantity_decimals($item['in_stock']) . ' in ' . $item['stock_name'] . ']'; endif; ?>
-                                </td>
-                            <?php
-                            }
-                            ?>
-
-                            <td>
-                                <?php
-                                if($items_module_allowed && $change_price)
-                                {
-                                    echo form_input (['name' => 'price', 'class' => 'form-control input-sm', 'value' => to_currency_no_money($item['price']), 'tabindex' => ++$tabindex, 'onClick' => 'this.select();']);
-                                }
-                                else
-                                {
-                                    echo to_currency($item['price']);
-                                    echo form_hidden('price', to_currency_no_money($item['price']));
-                                }
-                                ?>
-                            </td>
-
-                            <td>
-                                <?php
-                                if($item['is_serialized'])
-                                {
-                                    echo to_quantity_decimals($item['quantity']);
-                                    echo form_hidden('quantity', $item['quantity']);
-                                }
-                                else
-                                {
-                                    echo form_input (['name' => 'quantity', 'class' => 'form-control input-sm', 'value' => to_quantity_decimals($item['quantity']), 'tabindex' => ++$tabindex, 'onClick' => 'this.select();']);
-                                }
-                                ?>
-                            </td>
-
-                            <td>
-                                <div class="input-group">
-                                    <?= form_input (['name' => 'discount', 'class' => 'form-control input-sm', 'value' => $item['discount_type'] ? to_currency_no_money($item['discount']) : to_decimals($item['discount']), 'tabindex' => ++$tabindex, 'onClick' => 'this.select();']) ?>
-                                    <span class="input-group-btn">
-                                        <?= form_checkbox (['id' => 'discount_toggle', 'name' => 'discount_toggle', 'value' => 1, 'data-toggle' => "toggle",'data-size' => 'small', 'data-onstyle' => 'success', 'data-on' => '<b>' . $config['currency_symbol'] . '</b>', 'data-off' => '<b>%</b>', 'data-line' => $line, 'checked' => $item['discount_type'] == 1]) ?>
-                                    </span>
-                                </div>
-                            </td>
-
-                            <td>
-                                <?php
-                                if($item['item_type'] == ITEM_AMOUNT_ENTRY)    //TODO: === ?
-                                {
-                                    echo form_input (['name' => 'discounted_total', 'class' => 'form-control input-sm', 'value' => to_currency_no_money($item['discounted_total']), 'tabindex' => ++$tabindex, 'onClick' => 'this.select();']);
-                                }
-                                else
-                                {
-                                    echo to_currency($item['discounted_total']);
-                                }
-                                ?>
-                            </td>
-
-                            <td><a href="javascript:document.getElementById('<?= "cart_$line" ?>').submit();" title=<?= lang(ucfirst($controller_name) .'.update') ?> ><span class="glyphicon glyphicon-refresh"></span></a></td>
-                        </tr>
-                        <tr>
-                            <?php
-                            if($item['item_type'] == ITEM_TEMP)
-                            {
-                            ?>
-                                <td><?= form_input (['type' => 'hidden', 'name' => 'item_id', 'value' => $item['item_id']]) ?></td>
-                                <td style="align: center;" colspan="6">
-                                    <?= form_input (['name' => 'item_description', 'id' => 'item_description', 'class' => 'form-control input-sm', 'value' => $item['description'], 'tabindex' => ++$tabindex]) ?>
-                                </td>
-                                <td> </td>
-                            <?php
-                            }
-                            else
-                            {
-                            ?>
-                                <td> </td>
-                                <?php
-                                if($item['allow_alt_description'])
-                                {
-                                ?>
-                                    <td style="color: #2F4F4F;"><?= lang(ucfirst($controller_name) .'.description_abbrv') ?></td>
-                                <?php
-                                }
-                                ?>
-
-                                <td colspan='2' style="text-align: left;">
-                                    <?php
-                                    if($item['allow_alt_description'])
-                                    {
-                                        echo form_input(['name' => 'description', 'class' => 'form-control input-sm', 'value' => $item['description'], 'onClick' => 'this.select();']);
-                                    }
-                                    else
-                                    {
-                                        if($item['description'] != '')
-                                        {
-                                            echo $item['description'];
-                                            echo form_hidden('description', $item['description']);
-                                        }
-                                        else
-                                        {
-                                            echo lang(ucfirst($controller_name) .'.no_description');
-                                            echo form_hidden('description','');
-                                        }
-                                    }
-                                    ?>
-                                </td>
-                                <td>&nbsp;</td>
-                                <td style="color: #2F4F4F;">
-                                    <?php
-                                    if($item['is_serialized'])
-                                    {
-                                        echo lang(ucfirst($controller_name) .'.serial');
-                                    }
-                                    ?>
-                                </td>
-                                <td colspan='4' style="text-align: left;">
-                                    <?php
-                                    if($item['is_serialized'])
-                                    {
-                                        echo form_input(['name' => 'serialnumber', 'class' => 'form-control input-sm', 'value' => $item['serialnumber'], 'onClick' => 'this.select();']);
-                                    }
-                                    else
-                                    {
-                                        echo form_hidden('serialnumber', '');
-                                    }
-                                    ?>
-                                </td>
-                            <?php
-                            }
-                            ?>
-                        </tr>
-                    <?= form_close() ?>
-            <?php
-                }
-            }
-            ?>
-        </tbody>
-    </table>
-</div>
-
-<!-- Overall Sale -->
-
-<div id="overall_sale" class="panel panel-default">
-    <div class="panel-body">
-        <?= form_open("$controller_name/selectCustomer", ['id' => 'select_customer_form', 'class' => 'form-horizontal']) ?>
-            <?php
-            if(isset($customer))
-            {
-            ?>
-                <table class="sales_table_100">
-                    <tr>
-                        <th style="width: 55%;"><?= lang(ucfirst($controller_name) .'.customer') ?></th>
-                        <th style="width: 45%; text-align: right;"><?= anchor("customers/view/$customer_id", $customer, ['class' => 'modal-dlg', 'data-btn-submit' => lang('Common.submit'), 'title' => lang('Customers.update')]) ?></th>
-                    </tr>
-                    <?php
-                    if(!empty($customer_email))
-                    {
-                    ?>
-                        <tr>
-                            <th style="width: 55%;"><?= lang(ucfirst($controller_name) .'.customer_email') ?></th>
-                            <th style="width: 45%; text-align: right;"><?= esc($customer_email) ?></th>
-                        </tr>
-                    <?php
-                    }
-                    ?>
-                    <?php
-                    if(!empty($customer_address))
-                    {
-                    ?>
-                        <tr>
-                            <th style="width: 55%;"><?= lang(ucfirst($controller_name) .'.customer_address') ?></th>
-                            <th style="width: 45%; text-align: right;"><?= esc($customer_address) ?></th>
-                        </tr>
-                    <?php
-                    }
-                    ?>
-                    <?php
-                    if(!empty($customer_location))
-                    {
-                    ?>
-                        <tr>
-                            <th style="width: 55%;"><?= lang(ucfirst($controller_name) .'.customer_location') ?></th>
-                            <th style="width: 45%; text-align: right;"><?= esc($customer_location) ?></th>
-                        </tr>
-                    <?php
-                    }
-                    ?>
-                    <tr>
-                        <th style="width: 55%;"><?= lang(ucfirst($controller_name) .'.customer_discount') ?></th>
-                        <th style="width: 45%; text-align: right;"><?= ($customer_discount_type == FIXED) ? to_currency($customer_discount) : $customer_discount . '%' ?></th>
-                    </tr>
-                    <?php if($config['customer_reward_enable']): ?>
-                    <?php
-                    if(!empty($customer_rewards))
-                    {
-                    ?>
-                        <tr>
-                            <th style="width: 55%;"><?= lang(ucfirst($controller_name) .'.rewards_package') ?></th>
-                            <th style="width: 45%; text-align: right;"><?= esc($customer_rewards['package_name']) ?></th>
-                        </tr>
-                        <tr>
-                            <th style="width: 55%;"><?= lang('Customers.available_points') ?></th>
-                            <th style="width: 45%; text-align: right;"><?= esc($customer_rewards['points']) ?></th>
-                        </tr>
-                    <?php
-                    }
-                    ?>
-                    <?php endif; ?>
-                    <tr>
-                        <th style="width: 55%;"><?= lang(ucfirst($controller_name) .'.customer_total') ?></th>
-                        <th style="width: 45%; text-align: right;"><?= to_currency($customer_total) ?></th>
-                    </tr>
-                    <?php
-                    if(!empty($mailchimp_info))
-                    {
-                    ?>
-                        <tr>
-                            <th style="width: 55%;"><?= lang(ucfirst($controller_name) .'.customer_mailchimp_status') ?></th>
-                            <th style="width: 45%; text-align: right;"><?= esc($mailchimp_info['status']) ?></th>
-                        </tr>
-                    <?php
-                    }
-                    ?>
-                </table>
-
-                <?= anchor(
-                    "$controller_name/removeCustomer",
-                    '<span class=\'glyphicon glyphicon-remove\'>&nbsp</span>' . lang('Common.remove') . ' ' . lang('Customers.customer'),
-                        ['class' => 'btn btn-danger btn-sm', 'id' => 'remove_customer_button', 'title' => lang('Common.remove') . ' ' . lang('Customers.customer')]
-                    )
+              <td>
+                <?php
+                echo anchor("$controller_name/deleteItem/$line", '<span class="glyphicon glyphicon-trash"></span>');
+                echo form_hidden('location', (string)$item['item_location']);
+                echo form_input(['type' => 'hidden', 'name' => 'item_id', 'value' => $item['item_id']]);
                 ?>
-            <?php
-            }
-            else
-            {
-            ?>
-                <div class="form-group" id="select_customer">
-                    <label id="customer_label" for="customer" class="control-label" style="margin-bottom: 1em; margin-top: -1em;"><?= lang(ucfirst($controller_name) .'.select_customer') . esc(" $customer_required") ?></label>
-                    <?= form_input (['name' => 'customer', 'id' => 'customer', 'class' => 'form-control input-sm', 'value' => lang(ucfirst($controller_name) .'.start_typing_customer_name')]) ?>
+              </td>
+              <?php
+              if ($item['item_type'] == ITEM_TEMP) {
+              ?>
+                <td><?= form_input(['name' => 'item_number', 'id' => 'item_number', 'class' => 'form-control input-sm', 'value' => $item['item_number'], 'tabindex' => ++$tabindex]) ?></td>
+                <td style="align: center;">
+                  <?= form_input(['name' => 'name', 'id' => 'name', 'class' => 'form-control input-sm', 'value' => $item['name'], 'tabindex' => ++$tabindex]) ?>
+                </td>
+              <?php
+              } else {
+              ?>
+                <td><?= esc($item['item_number']) ?></td>
+                <td style="align: center;">
+                  <?= esc($item['name']) . ' ' . implode(' ', [$item['attribute_values'], $item['attribute_dtvalues']]) ?>
+                  <br />
+                  <?php if ($item['stock_type'] == '0'): echo '[' . to_quantity_decimals($item['in_stock']) . ' in ' . $item['stock_name'] . ']';
+                  endif; ?>
+                </td>
+              <?php
+              }
+              ?>
 
-                    <button class='btn btn-info btn-sm modal-dlg' data-btn-submit="<?= lang('Common.submit') ?>" data-href="<?= "customers/view" ?>"
-                            title="<?= lang(ucfirst($controller_name) .".new_customer") ?>">
-                        <span class="glyphicon glyphicon-user">&nbsp</span><?= lang(ucfirst($controller_name) .".new_customer") ?>
-                    </button>
-                    <button class='btn btn-default btn-sm modal-dlg' id='show_keyboard_help' data-href="<?= esc("$controller_name/salesKeyboardHelp") ?>"
-                            title="<?= lang(ucfirst($controller_name) .'.key_title') ?>">
-                        <span class="glyphicon glyphicon-share-alt">&nbsp</span><?= lang(ucfirst($controller_name) .'.key_help') ?>
-                    </button>
+              <td>
+                <?php
+                if ($items_module_allowed && $change_price) {
+                  echo form_input(['name' => 'price', 'class' => 'form-control input-sm', 'value' => to_currency_no_money($item['price']), 'tabindex' => ++$tabindex, 'onClick' => 'this.select();']);
+                } else {
+                  echo to_currency($item['price']);
+                  echo form_hidden('price', to_currency_no_money($item['price']));
+                }
+                ?>
+              </td>
+
+              <td>
+                <?php
+                if ($item['is_serialized']) {
+                  echo to_quantity_decimals($item['quantity']);
+                  echo form_hidden('quantity', $item['quantity']);
+                } else {
+                  echo form_input(['name' => 'quantity', 'class' => 'form-control input-sm', 'value' => to_quantity_decimals($item['quantity']), 'tabindex' => ++$tabindex, 'onClick' => 'this.select();']);
+                }
+                ?>
+              </td>
+
+              <td>
+                <div class="input-group">
+                  <?= form_input(['name' => 'discount', 'class' => 'form-control input-sm', 'value' => $item['discount_type'] ? to_currency_no_money($item['discount']) : to_decimals($item['discount']), 'tabindex' => ++$tabindex, 'onClick' => 'this.select();']) ?>
+                  <span class="input-group-btn">
+                    <?= form_checkbox(['id' => 'discount_toggle', 'name' => 'discount_toggle', 'value' => 1, 'data-toggle' => "toggle", 'data-size' => 'small', 'data-onstyle' => 'success', 'data-on' => '<b>' . $config['currency_symbol'] . '</b>', 'data-off' => '<b>%</b>', 'data-line' => $line, 'checked' => $item['discount_type'] == 1]) ?>
+                  </span>
                 </div>
-            <?php
-            }
-            ?>
-        <?= form_close() ?>
+              </td>
 
+              <td>
+                <?php
+                if ($item['item_type'] == ITEM_AMOUNT_ENTRY)    //TODO: === ?
+                {
+                  echo form_input(['name' => 'discounted_total', 'class' => 'form-control input-sm', 'value' => to_currency_no_money($item['discounted_total']), 'tabindex' => ++$tabindex, 'onClick' => 'this.select();']);
+                } else {
+                  echo to_currency($item['discounted_total']);
+                }
+                ?>
+              </td>
+
+              <td><a href="javascript:document.getElementById('<?= "cart_$line" ?>').submit();" title=<?= lang(ucfirst($controller_name) . '.update') ?>><span class="glyphicon glyphicon-refresh"></span></a></td>
+            </tr>
+            <tr>
+              <?php
+              if ($item['item_type'] == ITEM_TEMP) {
+              ?>
+                <td><?= form_input(['type' => 'hidden', 'name' => 'item_id', 'value' => $item['item_id']]) ?></td>
+                <td style="align: center;" colspan="6">
+                  <?= form_input(['name' => 'item_description', 'id' => 'item_description', 'class' => 'form-control input-sm', 'value' => $item['description'], 'tabindex' => ++$tabindex]) ?>
+                </td>
+                <td> </td>
+              <?php
+              } else {
+              ?>
+                <td> </td>
+                <?php
+                if ($item['allow_alt_description']) {
+                ?>
+                  <td style="color: #2F4F4F;"><?= lang(ucfirst($controller_name) . '.description_abbrv') ?></td>
+                <?php
+                }
+                ?>
+
+                <td colspan='2' style="text-align: left;">
+                  <?php
+                  if ($item['allow_alt_description']) {
+                    echo form_input(['name' => 'description', 'class' => 'form-control input-sm', 'value' => $item['description'], 'onClick' => 'this.select();']);
+                  } else {
+                    if ($item['description'] != '') {
+                      echo $item['description'];
+                      echo form_hidden('description', $item['description']);
+                    } else {
+                      echo lang(ucfirst($controller_name) . '.no_description');
+                      echo form_hidden('description', '');
+                    }
+                  }
+                  ?>
+                </td>
+                <td>&nbsp;</td>
+                <td style="color: #2F4F4F;">
+                  <?php
+                  if ($item['is_serialized']) {
+                    echo lang(ucfirst($controller_name) . '.serial');
+                  }
+                  ?>
+                </td>
+                <td colspan='4' style="text-align: left;">
+                  <?php
+                  if ($item['is_serialized']) {
+                    echo form_input(['name' => 'serialnumber', 'class' => 'form-control input-sm', 'value' => $item['serialnumber'], 'onClick' => 'this.select();']);
+                  } else {
+                    echo form_hidden('serialnumber', '');
+                  }
+                  ?>
+                </td>
+              <?php
+              }
+              ?>
+            </tr>
+            <?= form_close() ?>
+        <?php
+          }
+        }
+        ?>
+      </tbody>
+    </table>
+    <!-- Overall Sale -->
+    <div id="overall_sale" class="panel panel-default" style="width:100%">
+      <div class="panel-body">
         <table class="sales_table_100" id="sale_totals">
-            <tr>
-                <th style="width: 55%;"><?= lang(ucfirst($controller_name) .'.quantity_of_items', [$item_count]) ?></th>
-                <th style="width: 45%; text-align: right;"><?= $total_units ?></th>
-            </tr>
-            <tr>
-                <th style="width: 55%;"><?= lang(ucfirst($controller_name) .'.sub_total') ?></th>
-                <th style="width: 45%; text-align: right;"><?= to_currency($subtotal) ?></th>
-            </tr>
+          <tr>
+            <th style="width: 55%;"><?= lang(ucfirst($controller_name) . '.quantity_of_items', [$item_count]) ?></th>
+            <th style="width: 45%; text-align: right;"><?= $total_units ?></th>
+          </tr>
+          <tr>
+            <th style="width: 55%;"><?= lang(ucfirst($controller_name) . '.sub_total') ?></th>
+            <th style="width: 45%; text-align: right;"><?= to_currency($subtotal) ?></th>
+          </tr>
 
-            <?php
-            foreach($taxes as $tax_group_index=>$tax)
-            {
-            ?>
-                <tr>
-                    <th style="width: 55%;"><?= (float)$tax['tax_rate'] . '% ' . $tax['tax_group'] ?></th>
-                    <th style="width: 45%; text-align: right;"><?= to_currency_tax($tax['sale_tax_amount']) ?></th>
-                </tr>
-            <?php
-            }
-            ?>
-
+          <?php
+          foreach ($taxes as $tax_group_index => $tax) {
+          ?>
             <tr>
-                <th style="width: 55%; font-size: 150%"><?= lang(ucfirst($controller_name) .'.total') ?></th>
-                <th style="width: 45%; font-size: 150%; text-align: right;"><span id="sale_total"><?= to_currency($total) ?></span></th>
+              <th style="width: 55%;"><?= (float)$tax['tax_rate'] . '% ' . $tax['tax_group'] ?></th>
+              <th style="width: 45%; text-align: right;"><?= to_currency_tax($tax['sale_tax_amount']) ?></th>
             </tr>
+          <?php
+          }
+          ?>
+
+          <tr>
+            <th style="width: 55%; font-size: 150%"><?= lang(ucfirst($controller_name) . '.total') ?></th>
+            <th style="width: 45%; font-size: 150%; text-align: right;"><span id="sale_total"><?= to_currency($total) ?></span></th>
+          </tr>
+        </table>
+        <table class="sales_table_100" id="payment_totals">
+          <tr>
+            <th style="width: 55%;"><?= lang(ucfirst($controller_name) . '.payments_total') ?></th>
+            <th style="width: 45%; text-align: right;"><?= to_currency($payments_total) ?></th>
+          </tr>
+          <tr>
+            <th style="width: 55%; font-size: 120%"><?= lang(ucfirst($controller_name) . '.amount_due') ?></th>
+            <th style="width: 45%; font-size: 120%; text-align: right;"><span id="sale_amount_due"><?= to_currency($amount_due) ?></span></th>
+          </tr>
         </table>
 
+        <div id="payment_details">
+          <?= form_open("$controller_name/addPayment", ['id' => 'add_payment_form', 'class' => 'form-horizontal']) ?>
+          <div class="row">
+            <?php
+            $col_count = 0;
+            foreach ($payment_options as $key => $payment_type):
+              $amount = null;
+              foreach ($payments as $payment_id => $payment) {
+                if ($payment['payment_type'] == $payment_type) {
+                  if (!$amount) {
+                    $amount += $payment['payment_amount'];
+                  }
+                }
+              }
+            ?>
+              <div class="col-sm-3">
+                <div class="form-group form-group-sm">
+                  <label class="control-label"><?= esc($payment_type) ?></label>
+                  <?= form_input([
+                    'name' => 'payment_amounts[' . esc($key) . ']',
+                    'id' => 'payment_' . str_replace(' ', '_', strtolower($key)),
+                    'class' => 'form-control input-sm payment-amount',
+                    'data-payment-type' => esc($key),
+                    'value' =>  $amount,
+                    'placeholder' => '0.00',
+                    'onClick' => 'this.select();'
+                  ]) ?>
+                </div>
+              </div>
+            <?php
+            endforeach;
+            ?>
+          </div>
+          <?= form_close() ?>
+
+          <!-- Hidden form for individual payment submission -->
+          <?= form_open("$controller_name/addPayment", ['id' => 'single_payment_form', 'style' => 'display: none;']) ?>
+          <?= form_input(['type' => 'hidden', 'name' => 'payment_type', 'id' => 'hidden_payment_type']) ?>
+          <?= form_input(['type' => 'hidden', 'name' => 'amount_tendered', 'id' => 'hidden_amount_tendered']) ?>
+          <?= form_close() ?>
+        </div>
+
         <?php
-        // Only show this part if there are Items already in the register
-        if(count($cart) > 0)
-        {
+        // Show Complete sale button instead of Add Payment if there is no amount due left
+        if ($payments_cover_total) {
         ?>
-            <table class="sales_table_100" id="payment_totals">
-                <tr>
-                    <th style="width: 55%;"><?= lang(ucfirst($controller_name) .'.payments_total') ?></th>
-                    <th style="width: 45%; text-align: right;"><?= to_currency($payments_total) ?></th>
-                </tr>
-                <tr>
-                    <th style="width: 55%; font-size: 120%"><?= lang(ucfirst($controller_name) .'.amount_due') ?></th>
-                    <th style="width: 45%; font-size: 120%; text-align: right;"><span id="sale_amount_due"><?= to_currency($amount_due) ?></span></th>
-                </tr>
-            </table>
+          <?php
+          // Only show this part if in sale or return mode
+          if ($pos_mode) {
+            $due_payment = false;
 
-            <div id="payment_details">
-                <?php
-                // Show Complete sale button instead of Add Payment if there is no amount due left
-                if($payments_cover_total)
-                {
-                ?>
-                    <?= form_open("$controller_name/addPayment", ['id' => 'add_payment_form', 'class' => 'form-horizontal']) ?>
-                        <table class="sales_table_100">
-                            <tr>
-                                <td><?= lang(ucfirst($controller_name) .'.payment') ?></td>
-                                <td>
-                                    <?= form_dropdown('payment_type', $payment_options, $selected_payment_type, ['id' => 'payment_types', 'class' => 'selectpicker show-menu-arrow', 'data-style' => 'btn-default btn-sm', 'data-width' => 'fit', 'disabled' => 'disabled']) ?>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><span id="amount_tendered_label"><?= lang(ucfirst($controller_name) .'.amount_tendered') ?></span></td>
-                                <td>
-                                    <?= form_input (['name' => 'amount_tendered', 'id' => 'amount_tendered', 'class' => 'form-control input-sm disabled', 'disabled' => 'disabled', 'value' => '0', 'size' => '5', 'tabindex' => ++$tabindex, 'onClick' => 'this.select();']) ?>
-                                </td>
-                            </tr>
-                        </table>
-                    <?= form_close() ?>
-
-                    <?php
-                    // Only show this part if in sale or return mode
-                    if($pos_mode)
-                    {
-                        $due_payment = false;
-
-                        if(count($payments) > 0)
-                        {
-                            foreach($payments as $payment_id => $payment)
-                            {
-                                if($payment['payment_type'] == lang(ucfirst($controller_name) .'.due'))
-                                {
-                                    $due_payment = true;
-                                }
-                            }
-                        }
-
-                        if(!$due_payment || ($due_payment && isset($customer)))    //TODO: $due_payment is not needed because the first clause insures that it will always be true if it gets to this point.  Can be shortened to if(!$due_payment || isset($customer))
-                        {
-                    ?>
-                            <div class='btn btn-sm btn-success pull-right' id='finish_sale_button' tabindex="<?= ++$tabindex ?>"><span class="glyphicon glyphicon-ok">&nbsp</span><?= lang(ucfirst($controller_name) .'.complete_sale') ?></div>
-                    <?php
-                        }
-                    }
-                    ?>
-                <?php
+            if (count($payments) > 0) {
+              foreach ($payments as $payment) {
+                if ($payment['payment_type'] == lang(ucfirst($controller_name) . '.due')) {
+                  $due_payment = true;
                 }
-                else
-                {
-                ?>
-                    <?= form_open("$controller_name/addPayment", ['id' => 'add_payment_form', 'class' => 'form-horizontal']) ?>
-                        <table class="sales_table_100">
-                            <tr>
-                                <td><?= lang(ucfirst($controller_name) .'.payment') ?></td>
-                                <td>
-                                    <?= form_dropdown('payment_type', $payment_options,  $selected_payment_type, ['id' => 'payment_types', 'class' => 'selectpicker show-menu-arrow', 'data-style' => 'btn-default btn-sm', 'data-width' => 'fit']) ?>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><span id="amount_tendered_label"><?= lang(ucfirst($controller_name) .'.amount_tendered') ?></span></td>
-                                <td>
-                                    <?= form_input (['name' => 'amount_tendered', 'id' => 'amount_tendered', 'class' => 'form-control input-sm non-giftcard-input', 'value' => to_currency_no_money($amount_due), 'size' => '5', 'tabindex' => ++$tabindex, 'onClick' => 'this.select();']) ?>
-                                    <?= form_input (['name' => 'amount_tendered', 'id' => 'amount_tendered', 'class' => 'form-control input-sm giftcard-input', 'disabled' => true, 'value' => to_currency_no_money($amount_due), 'size' => '5', 'tabindex' => ++$tabindex]) ?>
-                                </td>
-                            </tr>
-                        </table>
-                    <?= form_close() ?>
+              }
+            }
+          }
+          ?>
+        <?php
+        }
+        ?>
+        <div class='btn btn-sm btn-success pull-right' id='finish_sale_button' tabindex="<?= ++$tabindex ?>"><span class="glyphicon glyphicon-ok">&nbsp</span><?= lang(ucfirst($controller_name) . '.complete_sale') ?></div>
+        <?= form_open("$controller_name/cancel", ['id' => 'buttons_form']) ?>
+        <div class="form-group" id="buttons_sale">
+          <div class='btn btn-sm btn-default pull-left' id='suspend_sale_button'><span class="glyphicon glyphicon-align-justify">&nbsp</span><?= lang(ucfirst($controller_name) . '.suspend_sale') ?></div>
+          <?php
+          // Only show this part if the payment covers the total
+          if (!$pos_mode && isset($customer)) {
+          ?>
+            <div class='btn btn-sm btn-success' id='finish_invoice_quote_button'><span class="glyphicon glyphicon-ok">&nbsp</span><?= esc($mode_label) ?></div>
+          <?php
+          }
+          ?>
 
-                    <div class='btn btn-sm btn-success pull-right' id='add_payment_button' tabindex="<?= ++$tabindex ?>"><span class="glyphicon glyphicon-credit-card">&nbsp</span><?= lang(ucfirst($controller_name) .'.add_payment') ?></div>
-                <?php
-                }
-                ?>
+          <div class='btn btn-sm btn-danger pull-right' id='cancel_sale_button'><span class="glyphicon glyphicon-remove">&nbsp</span><?= lang(ucfirst($controller_name) . '.cancel_sale') ?></div>
+        </div>
+        <?= form_close() ?>
 
-                <?php
-                // Only show this part if there is at least one payment entered.
-                if(count($payments) > 0)
-                {
-                ?>
-                    <table class="sales_table_100" id="register">
-                        <thead>
-                            <tr>
-                                <th style="width: 10%;"><?= lang('Common.delete') ?></th>
-                                <th style="width: 60%;"><?= lang(ucfirst($controller_name) .'.payment_type') ?></th>
-                                <th style="width: 20%;"><?= lang(ucfirst($controller_name) .'.payment_amount') ?></th>
-                            </tr>
-                        </thead>
-
-                        <tbody id="payment_contents">
-                            <?php
-                            foreach($payments as $payment_id => $payment)
-                            {
-                            ?>
-                                <tr>
-                                    <td><?= anchor("$controller_name/deletePayment/$payment_id", '<span class="glyphicon glyphicon-trash"></span>') ?></td>
-                                    <td><?= esc($payment['payment_type']) ?></td>
-                                    <td style="text-align: right;"><?= to_currency($payment['payment_amount']) ?></td>
-                                </tr>
-                            <?php
-                            }
-                            ?>
-                        </tbody>
-                    </table>
-                <?php
-                }
-                ?>
+        <?php
+        // Only show this part if the payment cover the total
+        if ($payments_cover_total || !$pos_mode) {
+        ?>
+          <div class="container-fluid">
+            <div class="no-gutter row">
+              <div class="form-group form-group-sm">
+                <div class="col-xs-12">
+                  <?= form_label(lang('Common.comments'), 'comments', ['class' => 'control-label', 'id' => 'comment_label', 'for' => 'comment']) ?>
+                  <?= form_textarea(['name' => 'comment', 'id' => 'comment', 'class' => 'form-control input-sm', 'value' => $comment, 'rows' => '2']) ?>
+                </div>
+              </div>
             </div>
-
-            <?= form_open("$controller_name/cancel", ['id' => 'buttons_form']) ?>
-                <div class="form-group" id="buttons_sale">
-                    <div class='btn btn-sm btn-default pull-left' id='suspend_sale_button'><span class="glyphicon glyphicon-align-justify">&nbsp</span><?= lang(ucfirst($controller_name) .'.suspend_sale') ?></div>
-                    <?php
-                    // Only show this part if the payment covers the total
-                    if(!$pos_mode && isset($customer))
-                    {
-                    ?>
-                        <div class='btn btn-sm btn-success' id='finish_invoice_quote_button'><span class="glyphicon glyphicon-ok">&nbsp</span><?= esc($mode_label) ?></div>
-                    <?php
-                    }
-                    ?>
-
-                    <div class='btn btn-sm btn-danger pull-right' id='cancel_sale_button'><span class="glyphicon glyphicon-remove">&nbsp</span><?= lang(ucfirst($controller_name) .'.cancel_sale') ?></div>
+            <div class="row">
+              <div class="form-group form-group-sm">
+                <div class="col-xs-6">
+                  <label for="sales_print_after_sale" class="control-label checkbox">
+                    <?= form_checkbox(['name' => 'sales_print_after_sale', 'id' => 'sales_print_after_sale', 'value' => 1, 'checked' => $print_after_sale]) ?>
+                    <?= lang(ucfirst($controller_name) . '.print_after_sale') ?>
+                  </label>
                 </div>
-            <?= form_close() ?>
 
+                <?php
+                if (!empty($customer_email)) {
+                ?>
+                  <div class="col-xs-6">
+                    <label for="email_receipt" class="control-label checkbox">
+                      <?= form_checkbox(['name' => 'email_receipt', 'id' => 'email_receipt', 'value' => 1, 'checked' => $email_receipt]) ?>
+                      <?= lang(ucfirst($controller_name) . '.email_receipt') ?>
+                    </label>
+                  </div>
+                <?php
+                }
+                ?>
+                <?php
+                if ($mode == 'sale_work_order') {
+                ?>
+                  <div class="col-xs-6">
+                    <label for="price_work_orders" class="control-label checkbox">
+                      <?= form_checkbox(['name' => 'price_work_orders', 'id' => 'price_work_orders', 'value' => 1, 'checked' => $price_work_orders]) ?>
+                      <?= lang(ucfirst($controller_name) . '.include_prices') ?>
+                    </label>
+                  </div>
+                <?php
+                }
+                ?>
+              </div>
+            </div>
             <?php
-            // Only show this part if the payment cover the total
-            if($payments_cover_total || !$pos_mode)
-            {
+            if (($mode == 'sale_invoice') && $config['invoice_enable']) {
             ?>
-                <div class="container-fluid">
-                    <div class="no-gutter row">
-                        <div class="form-group form-group-sm">
-                            <div class="col-xs-12">
-                                <?= form_label(lang('Common.comments'), 'comments', ['class' => 'control-label', 'id' => 'comment_label', 'for' => 'comment']) ?>
-                                <?= form_textarea (['name' => 'comment', 'id' => 'comment', 'class' => 'form-control input-sm', 'value' => $comment, 'rows' => '2']) ?>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="form-group form-group-sm">
-                            <div class="col-xs-6">
-                                <label for="sales_print_after_sale" class="control-label checkbox">
-                                    <?= form_checkbox (['name' => 'sales_print_after_sale', 'id' => 'sales_print_after_sale', 'value' => 1, 'checked' => $print_after_sale]) ?>
-                                    <?= lang(ucfirst($controller_name) .'.print_after_sale') ?>
-                                </label>
-                            </div>
+              <div class="row">
+                <div class="form-group form-group-sm">
+                  <div class="col-xs-6">
+                    <label for="sales_invoice_number" class="control-label checkbox">
+                      <?= lang(ucfirst($controller_name) . '.invoice_enable') ?>
+                    </label>
+                  </div>
 
-                            <?php
-                            if(!empty($customer_email))
-                            {
-                            ?>
-                                <div class="col-xs-6">
-                                    <label for="email_receipt" class="control-label checkbox">
-                                        <?= form_checkbox (['name' => 'email_receipt', 'id' => 'email_receipt', 'value'=>1, 'checked' => $email_receipt]) ?>
-                                        <?= lang(ucfirst($controller_name) .'.email_receipt') ?>
-                                    </label>
-                                </div>
-                            <?php
-                            }
-                            ?>
-                            <?php
-                            if($mode == 'sale_work_order')
-                            {
-                            ?>
-                                <div class="col-xs-6">
-                                    <label for="price_work_orders" class="control-label checkbox">
-                                    <?= form_checkbox (['name' => 'price_work_orders', 'id' => 'price_work_orders', 'value' => 1, 'checked' => $price_work_orders]) ?>
-                                    <?= lang(ucfirst($controller_name) .'.include_prices') ?>
-                                    </label>
-                                </div>
-                            <?php
-                            }
-                            ?>
-                        </div>
+                  <div class="col-xs-6">
+                    <div class="input-group input-group-sm">
+                      <span class="input-group-addon input-sm">#</span>
+                      <?= form_input(['name' => 'sales_invoice_number', 'id' => 'sales_invoice_number', 'class' => 'form-control input-sm', 'value' => $invoice_number]) ?>
                     </div>
-                    <?php
-                    if(($mode == 'sale_invoice') && $config['invoice_enable'])
-                    {
-                    ?>
-                        <div class="row">
-                            <div class="form-group form-group-sm">
-                                <div class="col-xs-6">
-                                    <label for="sales_invoice_number" class="control-label checkbox">
-                                        <?= lang(ucfirst($controller_name) .'.invoice_enable') ?>
-                                    </label>
-                                </div>
-
-                                <div class="col-xs-6">
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-addon input-sm">#</span>
-                                        <?= form_input (['name' => 'sales_invoice_number', 'id' => 'sales_invoice_number', 'class' => 'form-control input-sm', 'value' => $invoice_number]) ?>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    <?php
-                    }
-                    ?>
+                  </div>
                 </div>
+              </div>
             <?php
             }
             ?>
+          </div>
         <?php
         }
         ?>
+      </div>
     </div>
+  </div>
+  <div class="col-sm-5">
+    <div id="customer_sales_history_section" style="margin-top: 2em;">
+      <h4>Customer Sales History</h4>
+      <div id="customer_history_loading" style="display:none;">
+        <span class="glyphicon glyphicon-refresh spinning"></span> Loading sales history...
+      </div>
+      <div id="customer_sales_history">
+        <!-- Sales history will be loaded here by JS -->
+      </div>
+    </div>
+  </div>
 </div>
-
 <script type="application/javascript">
-$(document).ready(function()
-{
-    const redirect = function() {
+  // Add the typewatch function at the top
+  var typewatch = function() {
+    var timer = 0;
+    return function(callback, ms) {
+      clearTimeout(timer);
+      timer = setTimeout(callback, ms);
+    }
+  }();
+
+  const RegisterJs = {
+    init: function() {
+      this.utils.focusInitialField();
+      this.events.bindAll();
+      this.handlers.setupAutocomplete();
+      this.handlers.setupKeyboardShortcuts();
+      this.handlers.setupPaymentAutoAdd();
+
+      // Calculate average on page load if data exists
+      this.utils.calculateAveragePerDay();
+
+      // If vehicle data exists on load, show the calculation
+      this.utils.showCalculatedAverageOnLoad();
+      this.utils.updateHeaderText();
+    },
+
+    utils: {
+      redirect: function() {
         window.location.href = "<?= site_url('sales'); ?>";
-    };
+      },
+      focusInitialField: function() {
+        $('#item').focus();
+      },
+      calculateAveragePerDay: function() {
+        const avgOilKm = parseFloat($('#vehicle_avg_oil_km').val()) || 0;
+        const avgKmDay = parseFloat($('#vehicle_avg_km_day').val()) || 0;
+        if (avgOilKm > 0 && avgKmDay > 0) {
+          const avgPerDay = avgOilKm / avgKmDay;
+          const days = Math.round(avgPerDay);
 
-    $("#remove_customer_button").click(function()
-    {
-        $.post("<?= site_url('sales/removeCustomer'); ?>", redirect);
-    });
+          // Display with better formatting
+          $('#calculated_avg_per_day').text('Next Visit in: ' + days + (days === 1 ? ' day' : ' days'));
 
-    $(".delete_item_button").click(function()
-    {
-        const item_id = $(this).data('item-id');
-        $.post("<?= site_url('sales/deleteItem/'); ?>" + item_id, redirect);
-    });
+          // Only set next visit date if it's not already set from database
+          if (!$('#vehicle_next_visit').val()) {
+            const today = new Date();
+            const futureDate = new Date(today);
+            futureDate.setDate(today.getDate() + days);
+            const formattedDate = futureDate.toISOString().split('T')[0];
+            $('#vehicle_next_visit').val(formattedDate);
+          }
+        } else {
+          $('#calculated_avg_per_day').text('');
+          // Don't clear vehicle_next_visit if it has a value from database
+          if (!$('#vehicle_next_visit').val()) {
+            $('#vehicle_next_visit').val('');
+          }
+        }
+      },
 
-    $(".delete_payment_button").click(function() {
-        const item_id = $(this).data('payment-id');
-        $.post("<?= site_url('sales/deletePayment/'); ?>" + item_id, redirect);
-    });
+      showCalculatedAverageOnLoad: function() {
+        // Show calculated average if both values exist on page load
+        const avgOilKm = parseFloat($('#vehicle_avg_oil_km').val()) || 0;
+        const avgKmDay = parseFloat($('#vehicle_avg_km_day').val()) || 0;
+        if (avgOilKm > 0 && avgKmDay > 0) {
+          const days = Math.round(avgOilKm / avgKmDay);
+          $('#calculated_avg_per_day').text('Next Visit in: ' + days + (days === 1 ? ' day' : ' days'));
+        }
+      },
+      displayCustomerSalesHistory: function(sales, sales_count) {
+        if (!Array.isArray(sales) || sales.length === 0) {
+          $('#customer_sales_history').html('<div class="alert alert-info">No sales history found for this customer.</div>');
+          $('#customer_sales_history').show();
+          return;
+        }
 
-    $("input[name='item_number']").change(function() {
-        var item_id = $(this).parents('tr').find("input[name='item_id']").val();
-        var item_number = $(this).val();
-        $.ajax({
-            url: "<?= site_url('sales/changeItemNumber') ?>",
-            method: 'post',
-            data: {
-                'item_id': item_id,
-                'item_number': item_number,
-            },
-            dataType: 'json'
+        let html = '<table class="table table-bordered table-striped">';
+        html += `
+        <thead>
+          <tr>
+            <th>ID #</th>
+            <th>Date</th>
+            <th>Product</th>
+            <th>Kilometer</th>
+            <th>Avg Oil KM</th>
+            <th>Avg KM/Day</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+        sales.forEach(function(sale) {
+          sale.items.forEach(function(item) {
+            // If item is not a service, skip it
+            html += `<tr>
+              <td>${sale.sale_id ? sale.sale_id : ''}</td>
+              <td>${sale.sale_time ? sale.sale_time : ''}</td>
+              <td>${item.name ? item.name : ''}</td>
+              <td>${sale.vehicle_kilometer ? sale.vehicle_kilometer : ''}</td>
+              <td>${sale.vehicle_avg_oil_km ? sale.vehicle_avg_oil_km : ''}</td>
+              <td>${sale.vehicle_avg_km_day ? sale.vehicle_avg_km_day : ''}</td>
+            </tr>`;
+          });
         });
-    });
 
-    $("input[name='name']").change(function() {
-        var item_id = $(this).parents('tr').find("input[name='item_id']").val();
-        var item_name = $(this).val();
-        $.ajax({
-            url: "<?= site_url('sales/changeItemName') ?>",
-            method: 'post',
-            data: {
-                'item_id': item_id,
-                'item_name': item_name,
+        html += '</tbody></table>';
+        $('#customer_sales_history').html(html);
+        $('#customer_sales_history').show();
+      },
+      updateHeaderText: function() {
+        const vehicleNo = $('#vehicle_no').val();
+        const customerName = $('#customer_name').val();
+        let headerText = '';
+
+        if (vehicleNo) {
+          headerText += `${vehicleNo} | `;
+        }
+        if (customerName) {
+          headerText += `${customerName}`;
+        }
+
+        document.title = headerText;
+      }
+    },
+
+    ajax: {
+      saveVehicleData: function(callback) {
+        const vehicleData = {
+          vehicle_no: $('#vehicle_no').val(),
+          kilometer: $('#vehicle_kilometer').val(),
+          last_avg_oil_km: $('#vehicle_avg_oil_km').val(),
+          last_avg_km_day: $('#vehicle_avg_km_day').val(),
+          last_next_visit: $('#vehicle_next_visit').val(),
+          last_customer_id: <?= isset($customer_id) ? $customer_id : 'null' ?>
+        };
+
+        if (vehicleData.vehicle_no) {
+          $.ajax({
+            url: "<?= site_url('vehicles/save') ?>",
+            method: 'POST',
+            data: vehicleData,
+            dataType: 'json',
+            success: function(response) {
+              if (callback) callback(true);
+              $.notify({
+                message: 'Vehicle data saved successfully'
+              }, {
+                type: 'success'
+              });
             },
-            dataType: 'json'
-        });
-    });
+            error: function() {
+              $.notify({
+                message: 'Warning: Vehicle data could not be saved'
+              }, {
+                type: 'warning'
+              });
+              if (callback) callback(false);
+            }
+          });
+        } else {
+          if (callback) callback(false);
+        }
+      },
 
-    $("input[name='item_description']").change(function() {
-        var item_id = $(this).parents('tr').find("input[name='item_id']").val();
-        var item_description = $(this).val();
-        $.ajax({
-            url: "<?= site_url('sales/changeItemDescription') ?>",
-            method: 'post',
-            data: {
-                'item_id': item_id,
-                'item_description': item_description,
+      saveCurrentVehicleData: function() {
+        const vehicleData = {
+          vehicle_no: $('#vehicle_no').val(),
+          kilometer: $('#vehicle_kilometer').val(),
+          last_avg_oil_km: $('#vehicle_avg_oil_km').val(),
+          last_avg_km_day: $('#vehicle_avg_km_day').val(),
+          last_next_visit: $('#vehicle_next_visit').val(),
+          last_customer_id: <?= isset($customer_id) ? $customer_id : 'null' ?>
+        };
+
+        // Only save if we have a vehicle number and at least one other field
+        if (vehicleData.vehicle_no && (vehicleData.kilometer || vehicleData.last_avg_oil_km || vehicleData.last_avg_km_day)) {
+          $.ajax({
+            url: "<?= site_url('vehicles/save') ?>",
+            method: 'POST',
+            data: vehicleData,
+            dataType: 'json',
+            success: function(response) {
+              console.log('Vehicle data saved on selection');
             },
-            dataType: 'json'
+            error: function() {
+              console.log('Failed to save vehicle data on selection');
+            }
+          });
+        }
+      },
+
+      loadVehicleData: function(vehicle_no) {
+        typewatch(function() {
+          const kilometer = $('#vehicle_kilometer').val();
+          const avg_oil_km = $('#vehicle_avg_oil_km').val();
+          const avg_km_day = $('#vehicle_avg_km_day').val();
+          const vehicle_next_visit = $('#vehicle_next_visit').val();
+          const customer_id = <?= isset($customer_id) ? $customer_id : 'null' ?>;
+          console.log({
+              vehicle_no: vehicle_no,
+              kilometer: kilometer,
+              last_avg_oil_km: avg_oil_km,
+              last_avg_km_day: avg_km_day,
+              last_next_visit: vehicle_next_visit,
+              last_customer_id: customer_id
+            })
+          $.ajax({
+            url: "<?= site_url('vehicles/getOrCreateByVehicleNo') ?>",
+            method: 'GET',
+            data: {
+              vehicle_no: vehicle_no,
+              kilometer: kilometer,
+              last_avg_oil_km: avg_oil_km,
+              last_avg_km_day: avg_km_day,
+              last_next_visit: vehicle_next_visit,
+              last_customer_id: customer_id
+            },
+            dataType: 'json',
+            success: function(response) {
+              if (response.success && response.vehicle) {
+                $('#vehicle_kilometer').val(response.vehicle.kilometer || '');
+                $('#vehicle_avg_oil_km').val(response.vehicle.last_avg_oil_km || '');
+                $('#vehicle_avg_km_day').val(response.vehicle.last_avg_km_day || '');
+                $('#vehicle_next_visit').val(response.vehicle.last_next_visit || '');
+                RegisterJs.utils.calculateAveragePerDay();
+
+                if (response.vehicle.last_customer_id) {
+                  RegisterJs.ajax.loadCustomerById(response.vehicle.last_customer_id);
+                }
+
+                // Show different messages for found vs created vehicles
+                if (response.created) {
+                  $.notify({
+                    message: 'New vehicle created: ' + response.vehicle.vehicle_no
+                  }, {
+                    type: 'success'
+                  });
+                } else {
+                  $.notify({
+                    message: 'Vehicle data loaded successfully'
+                  }, {
+                    type: 'success'
+                  });
+                }
+              } else {
+                // Clear fields if vehicle not found and couldn't be created
+                $('#vehicle_kilometer, #vehicle_avg_oil_km, #vehicle_avg_km_day, #vehicle_next_visit').val('');
+                $('#calculated_avg_per_day').text('');
+                $.notify({
+                  message: response.message || 'Error processing vehicle'
+                }, {
+                  type: 'warning'
+                });
+              }
+            },
+            error: function() {
+              $.notify({
+                message: 'Error loading vehicle data'
+              }, {
+                type: 'danger'
+              });
+            }
+          });
+        }, 300);
+      },
+
+      loadCustomerByPhone: function(phone_number) {
+        typewatch(function() {
+          const customer_name = $('#customer_name').val();
+
+          $.ajax({
+            url: "<?= site_url('customers/byPhoneNumberOrCreateCustomer') ?>",
+            method: 'GET',
+            data: {
+              phone_number: phone_number,
+              customer_name: customer_name
+            },
+            dataType: 'json',
+            success: function(response) {
+              if (response.success && response.customer) {
+                // Customer found or created - select them
+                $.post("<?= site_url('sales/selectCustomer') ?>", {
+                  customer: response.customer.person_id
+                }, function() {
+                  location.reload();
+                }).fail(function() {
+                  $.notify({
+                    message: 'Error selecting customer'
+                  }, {
+                    type: 'danger'
+                  });
+                });
+
+                $('#customer_name').val(`${response.customer.first_name} ${response.customer.last_name}`);
+
+                // Show different messages for found vs created customers
+                if (response.created) {
+                  $.notify({
+                    message: 'New customer created and selected: ' + response.customer.full_name
+                  }, {
+                    type: 'success'
+                  });
+                } else {
+                  $.notify({
+                    message: 'Customer found and selected: ' + response.customer.full_name
+                  }, {
+                    type: 'success'
+                  });
+                }
+              } else {
+                $.notify({
+                  message: response.message || 'Error processing customer'
+                }, {
+                  type: 'danger'
+                });
+              }
+            },
+            error: function() {
+              $.notify({
+                message: 'Error searching for customer'
+              }, {
+                type: 'danger'
+              });
+            }
+          });
+        }, 200);
+      },
+
+      loadCustomerById: function(customer_id) {
+        $.ajax({
+          url: "<?= site_url('customers/customerById') ?>",
+          method: 'GET',
+          data: {
+            customer_id
+          },
+          dataType: 'json',
+          success: function(response) {
+            if (response.success && response.customer) {
+              $.post("<?= site_url('sales/selectCustomer') ?>", {
+                customer: customer_id
+              }, function() {
+                location.reload();
+              }).fail(function() {
+                $.notify({
+                  message: 'Error selecting customer'
+                }, {
+                  type: 'danger'
+                });
+              });
+
+              $('#customer_name').val(`${response.customer.first_name} ${response.customer.last_name}`);
+              $('#phone_number').val(response.customer.phone_number || '');
+            }
+          }
         });
-    });
+      },
+      loadCustomerSalesHistory: function(customer_id) {
+        if (!customer_id) {
+          console.log('No customer ID provided');
+          return;
+        }
 
-    $('#item').focus();
+        $.ajax({
+          url: "<?= site_url('sales/customerSalesHistory') ?>", // Changed from customerSalesHistory to getCustomerSalesHistory
+          method: 'GET',
+          data: {
+            customer_id: customer_id
+          },
+          dataType: 'json',
+          beforeSend: function() {
+            $('#customer_history_loading').show();
+            $('#customer_sales_history').hide();
+          },
+          success: function(response) {
+            if (response.success && response.sales) {
+              RegisterJs.utils.displayCustomerSalesHistory(response.sales, response.sales_count);
+              // $.notify({ 
+              //   message: `Loaded ${response.sales_count} past sales for customer` 
+              // }, { type: 'info' });
+            } else {
+              $('#customer_sales_history').html('<div class="alert alert-info">No sales history found for this customer.</div>');
+              $('#customer_sales_history').show();
+            }
+          },
+          error: function() {
+            $('#customer_sales_history').html('<div class="alert alert-danger">Error loading customer sales history.</div>');
+            $('#customer_sales_history').show();
+            $.notify({
+              message: 'Error loading customer sales history'
+            }, {
+              type: 'danger'
+            });
+          },
+          complete: function() {
+            $('#customer_history_loading').hide();
+          }
+        });
+      }
+    },
 
-    $('#item').blur(function() {
-        $(this).val("<?= lang(ucfirst($controller_name) .'.start_typing_item_name') ?>");
-    });
-
-    $('#item').autocomplete( {
-        source: "<?= esc("$controller_name/itemSearch") ?>",
-        minChars: 0,
-        autoFocus: false,
-        delay: 500,
-        select: function (a, ui) {
+    handlers: {
+      setupAutocomplete: function() {
+        // Item search with typewatch
+        $('#item').autocomplete({
+          source: function(request, response) {
+            typewatch(function() {
+              $.ajax({
+                url: "<?= esc("$controller_name/itemSearch") ?>",
+                data: {
+                  term: request.term
+                },
+                dataType: 'json',
+                success: function(data) {
+                  if (Array.isArray(data)) {
+                    response(data);
+                  } else {
+                    response([]);
+                  }
+                },
+                error: function() {
+                  response([]);
+                }
+              });
+            }, 400);
+          },
+          minLength: 1,
+          delay: 0,
+          select: function(event, ui) {
             $(this).val(ui.item.value);
             $('#add_item_form').submit();
             return false;
-        }
-    });
-
-    $('#item').keypress(function (e) {
-        if(e.which == 13) {
+          }
+        }).keypress(function(e) {
+          if (e.which === 13) {
             $('#add_item_form').submit();
             return false;
-        }
-    });
-
-    var clear_fields = function() {
-        if($(this).val().match("<?= lang(ucfirst($controller_name) .'.start_typing_item_name') . '|' . lang(ucfirst($controller_name) .'.start_typing_customer_name') ?>"))
-        {
-            $(this).val('');
-        }
-    };
-
-    $('#item, #customer').click(clear_fields).dblclick(function(event) {
-        $(this).autocomplete('search');
-    });
-
-    $('#customer').blur(function() {
-        $(this).val("<?= lang(ucfirst($controller_name) .'.start_typing_customer_name') ?>");
-    });
-
-    $('#customer').autocomplete( {
-        source: "<?= site_url('customers/suggest') ?>",
-        minChars: 0,
-        delay: 10,
-        select: function (a, ui) {
-            $(this).val(ui.item.value);
-            $('#select_customer_form').submit();
-            return false;
-        }
-    });
-
-    $('#customer').keypress(function (e) {
-        if(e.which == 13) {
-            $('#select_customer_form').submit();
-            return false;
-        }
-    });
-
-    $('.giftcard-input').autocomplete( {
-        source: "<?= site_url('giftcards/suggest') ?>",
-        minChars: 0,
-        delay: 10,
-        select: function (a, ui) {
-            $(this).val(ui.item.value);
-            $('#add_payment_form').submit();
-            return false;
-        }
-    });
-
-    $('#comment').keyup(function() {
-        $.post("<?= esc(site_url("$controller_name/setComment")) ?>", {comment: $('#comment').val()});
-    });
-
-    <?php
-    if($config['invoice_enable'])
-    {
-    ?>
-        $('#sales_invoice_number').keyup(function() {
-            $.post("<?= esc(site_url("$controller_name/setInvoiceNumber")) ?>", {sales_invoice_number: $('#sales_invoice_number').val()});
+          }
         });
 
-    <?php
-    }
-    ?>
+        // Vehicle search with typewatch
+        $('#vehicle_no').autocomplete({
+          source: function(request, response) {
+            typewatch(function() {
+              console.log('Vehicle search triggered', new Date());
+              $.ajax({
+                url: "<?= site_url('vehicles/suggest') ?>",
+                data: {
+                  term: request.term
+                },
+                dataType: 'json',
+                success: function(data) {
+                  if (Array.isArray(data)) {
+                    response(data);
+                  } else {
+                    response([]);
+                  }
+                },
+                error: function() {
+                  response([]);
+                }
+              });
+            }, 400);
+          },
+          minLength: 1,
+          delay: 0,
+          select: function(event, ui) {
+            $(this).val(ui.item.value);
 
-    $('#sales_print_after_sale').change(function() {
-        $.post("<?= esc(site_url("$controller_name/setPrintAfterSale")) ?>", {sales_print_after_sale: $(this).is(':checked')});
-    });
+            // Load vehicle data first
+            RegisterJs.ajax.loadVehicleData(ui.item.value);
 
-    $('#price_work_orders').change(function() {
-        $.post("<?= esc(site_url("$controller_name/setPriceWorkOrders")) ?>", {price_work_orders: $(this).is(':checked')});
-    });
+            // Save current vehicle data if any exists
+            RegisterJs.ajax.saveCurrentVehicleData();
 
-    $('#email_receipt').change(function() {
-        $.post("<?= esc(site_url("$controller_name/setEmailReceipt")) ?>", {email_receipt: $(this).is(':checked')});
-    });
+            return false;
+          }
+        });
 
-    $('#finish_sale_button').click(function() {
-        $('#buttons_form').attr('action', "<?= "$controller_name/complete" ?>");
-        $('#buttons_form').submit();
-    });
+        // Customer search with typewatch
+        $('#customer').autocomplete({
+          source: function(request, response) {
+            typewatch(function() {
+              $.ajax({
+                url: "<?= site_url('customers/suggest') ?>",
+                data: {
+                  term: request.term
+                },
+                dataType: 'json',
+                success: function(data) {
+                  if (Array.isArray(data)) {
+                    response(data);
+                  } else {
+                    response([]);
+                  }
+                },
+                error: function() {
+                  response([]);
+                }
+              });
+            }, 300);
+          },
+          minLength: 1,
+          delay: 0,
+          select: function(event, ui) {
+            $(this).val(ui.item.value);
+            $('#select_customer_form').submit();
+            return false;
+          }
+        }).keypress(function(e) {
+          if (e.which === 13) {
+            $('#select_customer_form').submit();
+            return false;
+          }
+        }).blur(function() {
+          $(this).val("<?= lang(ucfirst($controller_name) . '.start_typing_customer_name') ?>");
+        });
 
-    $('#finish_invoice_quote_button').click(function() {
-        $('#buttons_form').attr('action', "<?= "$controller_name/complete" ?>");
-        $('#buttons_form').submit();
-    });
-
-    $('#suspend_sale_button').click(function() {
-        $('#buttons_form').attr('action', "<?= site_url("$controller_name/suspend") ?>");
-        $('#buttons_form').submit();
-    });
-
-    $('#cancel_sale_button').click(function() {
-        if(confirm("<?= lang(ucfirst($controller_name) .'.confirm_cancel_sale') ?>"))
-        {
-            $('#buttons_form').attr('action', "<?= site_url("$controller_name/cancel") ?>");
-            $('#buttons_form').submit();
-        }
-    });
-
-    $('#add_payment_button').click(function() {
-        $('#add_payment_form').submit();
-    });
-
-    $('#payment_types').change(check_payment_type).ready(check_payment_type);
-
-    $('#cart_contents input').keypress(function(event) {
-        if(event.which == 13)
-        {
-            $(this).parents('tr').prevAll('form:first').submit();
-        }
-    });
-
-    $('#amount_tendered').keypress(function(event) {
-        if(event.which == 13)
-        {
+        // Gift card input
+        $('.giftcard-input').autocomplete({
+          source: "<?= site_url('giftcards/suggest') ?>",
+          minLength: 1,
+          delay: 200,
+          select: function(event, ui) {
+            $(this).val(ui.item.value);
             $('#add_payment_form').submit();
-        }
-    });
+            return false;
+          }
+        });
+      },
 
-    $('#finish_sale_button').keypress(function(event) {
-        if(event.which == 13)
-        {
-            $('#finish_sale_form').submit();
-        }
-    });
+      setupKeyboardShortcuts: function() {
+        document.body.onkeyup = function(e) {
+          const map = {
+            49: "#item",
+            50: "#customer",
+            51: "#suspend_sale_button",
+            52: "#show_suspended_sales_button",
+            53: "#amount_tendered",
+            54: "#add_payment_button",
+            55: "#add_payment_button",
+            56: "#finish_invoice_quote_button",
+            57: "#show_keyboard_help"
+          };
 
-    dialog_support.init('a.modal-dlg, button.modal-dlg');
+          if (e.altKey && map[e.keyCode]) {
+            $(map[e.keyCode]).click().focus().select();
+          }
 
-    table_support.handle_submit = function(resource, response, stay_open) {
-        $.notify( { message: response.message }, { type: response.success ? 'success' : 'danger'} )
-
-        if(response.success)
-        {
-            if(resource.match(/customers$/))
-            {
-                $('#customer').val(response.id);
-                $('#select_customer_form').submit();
-            }
-            else
-            {
-                var $stock_location = $("select[name='stock_location']").val();
-                $('#item_location').val($stock_location);
-                $('#item').val(response.id);
-                if(stay_open)
-                {
-                    $('#add_item_form').ajaxSubmit();
-                }
-                else
-                {
-                    $('#add_item_form').submit();
-                }
-            }
-        }
-    }
-
-    $('[name="price"],[name="quantity"],[name="discount"],[name="description"],[name="serialnumber"],[name="discounted_total"]').change(function() {
-        $(this).parents('tr').prevAll('form:first').submit()
-    });
-
-    $('[name="discount_toggle"]').change(function() {
-        var input = $('<input>').attr('type', 'hidden').attr('name', 'discount_type').val(($(this).prop('checked'))?1:0);
-        $('#cart_'+ $(this).attr('data-line')).append($(input));
-        $('#cart_'+ $(this).attr('data-line')).submit();
-    });
-});
-
-function check_payment_type()
-{
-    var cash_mode = <?= json_encode($cash_mode) ?>;
-
-    if($("#payment_types").val() == "<?= lang(ucfirst($controller_name) .'.giftcard') ?>")
-    {
-        $("#sale_total").html("<?= to_currency($total) ?>");
-        $("#sale_amount_due").html("<?= to_currency($amount_due) ?>");
-        $("#amount_tendered_label").html("<?= lang(ucfirst($controller_name) .'.giftcard_number') ?>");
-        $("#amount_tendered:enabled").val('').focus();
-        $(".giftcard-input").attr('disabled', false);
-        $(".non-giftcard-input").attr('disabled', true);
-        $(".giftcard-input:enabled").val('').focus();
-    }
-    else if(($("#payment_types").val() == "<?= lang(ucfirst($controller_name) .'.cash') ?>" && cash_mode == '1'))
-    {
-        $("#sale_total").html("<?= to_currency($non_cash_total) ?>");
-        $("#sale_amount_due").html("<?= to_currency($cash_amount_due) ?>");
-        $("#amount_tendered_label").html("<?= lang(ucfirst($controller_name) .'.amount_tendered') ?>");
-        $("#amount_tendered:enabled").val("<?= to_currency_no_money($cash_amount_due) ?>");
-        $(".giftcard-input").attr('disabled', true);
-        $(".non-giftcard-input").attr('disabled', false);
-    }
-    else
-    {
-        $("#sale_total").html("<?= to_currency($non_cash_total) ?>");
-        $("#sale_amount_due").html("<?= to_currency($amount_due) ?>");
-        $("#amount_tendered_label").html("<?= lang(ucfirst($controller_name) .'.amount_tendered') ?>");
-        $("#amount_tendered:enabled").val("<?= to_currency_no_money($amount_due) ?>");
-        $(".giftcard-input").attr('disabled', true);
-        $(".non-giftcard-input").attr('disabled', false);
-    }
-}
-
-// Add Keyboard Shortcuts/Hotkeys to Sale Register
-document.body.onkeyup = function(e)
-{
-    switch(event.altKey && event.keyCode)
-    {
-        case 49: // Alt + 1 Items Seach
-            $("#item").focus();
-            $("#item").select();
-            break;
-        case 50: // Alt + 2 Customers Search
-            $("#customer").focus();
-            $("#customer").select();
-            break;
-        case 51: // Alt + 3 Suspend Current Sale
-            $("#suspend_sale_button").click();
-            break;
-        case 52: // Alt + 4 Check Suspended
-            $("#show_suspended_sales_button").click();
-            break;
-        case 53: // Alt + 5 Edit Amount Tendered Value
-            $("#amount_tendered").focus();
-            $("#amount_tendered").select();
-            break;
-        case 54: // Alt + 6 Add Payment
-            $("#add_payment_button").click();
-            break;
-        case 55: // Alt + 7 Add Payment and Complete Sales/Invoice
-            $("#add_payment_button").click();
-            window.location.href = "<?= 'sales/complete' ?>";
-            break;
-        case 56: // Alt + 8 Finish Quote/Invoice without payment
-            $("#finish_invoice_quote_button").click();
-            break;
-        case 57: // Alt + 9 Open Shortcuts Help Modal
-            $("#show_keyboard_help").click();
-            break;
-    }
-
-    switch(event.keyCode)
-    {
-        case 27: // ESC Cancel Current Sale
+          if (e.keyCode === 27) {
             $("#cancel_sale_button").click();
-            break;
-    }
-}
+          }
+        };
+      },
 
+      setupPaymentAutoAdd: function() {
+        $('.payment-amount').keypress(function(e) {
+          if (e.which === 13) {
+            const paymentType = $(this).data('payment-type');
+            const amount = parseFloat($(this).val()) || 0;
+            if (amount > 0) {
+              $('#hidden_payment_type').val(paymentType);
+              $('#hidden_amount_tendered').val(amount.toFixed(2));
+              $('#single_payment_form').submit();
+            }
+          }
+        });
+
+        // $('#payment_cash').focus();
+      }
+    },
+
+    events: {
+      bindAll: function() {
+        // Vehicle input event with typewatch
+        $('#vehicle_no').on('keydown', function(e) {
+          const val = $('#vehicle_no').val().trim().toUpperCase();
+          console.log('Vehicle input keydown', e.key, val, new Date());
+          console.log(e.key)
+          if (val.length >= 2 && e.key === 'Enter') {
+            e.preventDefault(); // prevent form submission
+            RegisterJs.ajax.loadVehicleData(val);
+            // RegisterJs.ajax.saveCurrentVehicleData();
+          }
+        });
+
+
+        // Save vehicle data when any vehicle-related field changes
+        $('#vehicle_kilometer, #vehicle_avg_oil_km, #vehicle_avg_km_day, #vehicle_next_visit').on('blur', function() {
+          RegisterJs.ajax.saveCurrentVehicleData();
+        });
+
+        // Phone number input with typewatch
+        $('#phone_number').on('change', function() {
+          const phone = $(this).val();
+          if (phone && phone.trim() !== '' && phone.length >= 3) {
+            RegisterJs.ajax.loadCustomerByPhone(phone);
+          }
+        });
+
+        // Average calculation inputs with typewatch for auto-save
+        $('#vehicle_avg_oil_km, #vehicle_avg_km_day').on('change', function() {
+          RegisterJs.utils.calculateAveragePerDay();
+          // Auto-save after calculation using typewatch
+          typewatch(function() {
+            RegisterJs.ajax.saveCurrentVehicleData();
+          }, 1000);
+        });
+
+        // Comment with typewatch
+        $('#comment').keyup(function() {
+          typewatch(function() {
+            $.post("<?= esc(site_url("$controller_name/setComment")) ?>", {
+              comment: $('#comment').val()
+            });
+          }, 500);
+        });
+
+        // Settings change with typewatch
+        $('#sales_print_after_sale, #price_work_orders, #email_receipt').change(function() {
+          const setting = this.id;
+          const value = $(this).is(':checked');
+
+          typewatch(function() {
+            $.post(`<?= esc(site_url("$controller_name/")) ?>set${setting.charAt(0).toUpperCase() + setting.slice(1)}`, {
+              [setting]: value
+            });
+          }, 200);
+        });
+
+        // Button events
+        $('#finish_sale_button, #finish_invoice_quote_button').click(function(e) {
+          e.preventDefault();
+          RegisterJs.ajax.saveVehicleData(() => {
+            $('#buttons_form').attr('action', "<?= "$controller_name/complete" ?>").submit();
+          });
+        });
+
+        $('#suspend_sale_button').click(function() {
+          RegisterJs.ajax.saveVehicleData(() => {
+            $('#buttons_form').attr('action', "<?= site_url("$controller_name/suspend") ?>").submit();
+          });
+        });
+
+        $('#cancel_sale_button').click(function() {
+          if (confirm("<?= lang(ucfirst($controller_name) . '.confirm_cancel_sale') ?>")) {
+            $('#buttons_form').attr('action', "<?= site_url("$controller_name/cancel") ?>").submit();
+          }
+        });
+
+        $('#add_payment_button').click(function() {
+          $('#add_payment_form').submit();
+        });
+      }
+    },
+  };
+
+  $(document).ready(function() {
+    RegisterJs.init();
+    <?php if (isset($customer_id) && $customer_id): ?>
+      RegisterJs.ajax.loadCustomerSalesHistory(<?= $customer_id ?>);
+    <?php endif; ?>
+  });
 </script>
-
 <?= view('partial/footer') ?>

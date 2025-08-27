@@ -465,4 +465,22 @@ class Customer extends Person
 
         return $builder->get();
     }
+
+    /**
+     * Get customer by phone number
+     */
+    public function get_customer_by_phone(string $phone_number)
+    {
+        $builder = $this->db->table('people');
+        $builder->join('customers', 'people.person_id = customers.person_id');
+        $builder->where('people.phone_number', $phone_number);
+
+        $query = $builder->get();
+
+        if ($query->getNumRows() == 1) {
+            return $query->getRow();
+        }
+
+        return false;
+    }
 }

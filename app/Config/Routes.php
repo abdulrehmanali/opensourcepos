@@ -39,3 +39,16 @@ $routes->add('reports/specific_customers', 'Reports::specific_customer_input');
 $routes->add('reports/specific_employees', 'Reports::specific_employee_input');
 $routes->add('reports/specific_discounts', 'Reports::specific_discount_input');
 $routes->add('reports/specific_suppliers', 'Reports::specific_supplier_input');
+
+// Add these routes for the new customer methods
+$routes->get('customers/byPhoneNumber', 'Customers::byPhoneNumber');
+$routes->get('customers/byPhoneNumberOrCreateCustomer', 'Customers::byPhoneNumberOrCreateCustomer');
+$routes->get('customers/customerById', 'Customers::customerById');
+$routes->get('customers/suggest', 'Customers::getSuggest');
+
+// Vehicle routes
+$routes->get('vehicles/suggest', 'Vehicles::suggest');
+$routes->get('vehicles/getByVehicleNo', 'Vehicles::getByVehicleNo');
+$routes->post('vehicles/save', 'Vehicles::save');
+$routes->get('vehicles/getOrCreateByVehicleNo', 'Vehicles::getOrCreateByVehicleNo');
+// $routes->get('sales/customerSalesHistory', 'Sales::getCustomerSalesHistory');

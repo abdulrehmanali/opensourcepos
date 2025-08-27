@@ -1,4 +1,3 @@
-
 volumes:
     uploads:
         driver: local
@@ -27,6 +26,20 @@ services:
             - MYSQL_DATABASE=ospos
             - MYSQL_USER=admin
             - MYSQL_PASSWORD=pointofsale
+    phpmyadmin:
+      image: phpmyadmin/phpmyadmin
+      restart: always
+      ports:
+        - 8080:80
+      environment:
+        PMA_HOST: mysql
+        PMA_PORT: 3306
+        PMA_USER: admin
+        PMA_PASSWORD: pointofsale
+      depends_on:
+        - mysql
+      networks:
+        - app_net
     ospos:
         build:
             context: .

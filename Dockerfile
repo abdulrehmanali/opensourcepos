@@ -1,9 +1,10 @@
 FROM php:8.2-apache AS ospos
 LABEL maintainer="jekkos"
 
-RUN apt update && apt-get install -y libicu-dev libgd-dev
-RUN a2enmod rewrite 
+RUN apt-get update && apt-get install -y libicu-dev libgd-dev libjpeg-dev libfreetype6-dev
+RUN docker-php-ext-configure gd --with-jpeg --with-freetype
 RUN docker-php-ext-install mysqli bcmath intl gd
+RUN a2enmod rewrite 
 RUN echo "date.timezone = \"\${PHP_TIMEZONE}\"" > /usr/local/etc/php/conf.d/timezone.ini
 
 WORKDIR /app
@@ -36,3 +37,6 @@ RUN yes | pecl install xdebug \
     && echo "zend_extension=$(find /usr/local/lib/php/extensions/ -name xdebug.so)" > /usr/local/etc/php/conf.d/xdebug.ini \
     && echo "xdebug.mode=debug" >> /usr/local/etc/php/conf.d/xdebug.ini \
     && echo "xdebug.remote_autostart=off" >> /usr/local/etc/php/conf.d/xdebug.ini
+
+RUN docker-php-ext-configure gd --with-jpeg --with-freetype
+RUN docker-php-ext-install gd

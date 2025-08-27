@@ -547,7 +547,7 @@ class Attribute extends Model
             {
                 $builder = $this->db->table('attribute_definitions');
                 $success = $builder->insert($definition_data);
-                $definition_data['definition_id'] = $this->db->insertID();
+                $definition_data['definition_id'] = (int) $this->db->insertID();
             }
         }
 
@@ -672,16 +672,15 @@ class Attribute extends Model
      */
     public function get_link_value(int $item_id, ?int $definition_id): ?object
     {
-        $builder = $this->db->table('attribute_links');
-        $builder->where('item_id', $item_id);
-        $builder->where('sale_id', null);
-        $builder->where('receiving_id', null);
-        if($definition_id != null)
-        {
-            $builder->where('definition_id', $definition_id);
-        }
-
-        return $builder->get()->getRowObject();
+      $builder = $this->db->table('attribute_links');
+      $builder->where('item_id', $item_id);
+      $builder->where('sale_id', null);
+      $builder->where('receiving_id', null);
+      if($definition_id != null)
+      {
+        $builder->where('definition_id', $definition_id);
+      }
+      return $builder->get()->getRowObject();
     }
 
     /**

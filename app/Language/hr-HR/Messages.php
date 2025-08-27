@@ -1,6 +1,7 @@
 <?php
 return [
     "first_name" => "First name",
+    "customer_name" => "Customer name",
     "last_name" => "Last name",
     "message" => "Message",
     "message_placeholder" => "Your Message here...",

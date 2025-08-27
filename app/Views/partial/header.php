@@ -9,16 +9,17 @@
 use Config\Services;
 
 $request = Services::request();
+
+$head_text = esc($config['company']);
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="<?= $request->getLocale() ?>">
 <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <base href="<?= base_url() ?>" />
-    <title><?= esc($config['company']) . ' | ' . lang('Common.powered_by') . ' OSPOS ' . esc(config('App')->application_version) ?></title>
+    <title><?= $head_text ?></title>
     <link rel="shortcut icon" type="image/x-icon" href="images/favicon.ico">
     <link rel="stylesheet" type="text/css" href="<?= 'resources/bootswatch/' . (empty($config['theme']) ? 'flatly' : esc($config['theme'])) . '/bootstrap.min.css' ?>"/>
-    
 	<?php if (ENVIRONMENT == 'development' || get_cookie('debug') == 'true' || $request->getGet('debug') == 'true') : ?>
 		<!-- inject:debug:css -->
 		<link rel="stylesheet" href="resources/css/jquery-ui-49d1c743e3.css">
@@ -39,7 +40,7 @@ $request = Services::request();
 		<link rel="stylesheet" href="resources/css/ospos-367a1bc0ae.css">
 		<link rel="stylesheet" href="resources/css/popupbox-57d6208379.css">
 		<link rel="stylesheet" href="resources/css/receipt-994a9a6ec5.css">
-		<link rel="stylesheet" href="resources/css/register-f38b8b7778.css">
+		<link rel="stylesheet" href="resources/css/register-5816dbe267.css">
 		<link rel="stylesheet" href="resources/css/reports-70cb473319.css">
 		<!-- endinject -->
 		<!-- inject:debug:js -->
@@ -80,7 +81,7 @@ $request = Services::request();
 		<!-- endinject -->
 	<?php else : ?>
 		<!--inject:prod:css -->
-		<link rel="stylesheet" href="resources/opensourcepos-1a078a830f.min.css">
+		<link rel="stylesheet" href="resources/opensourcepos-2309d6a938.min.css">
 		<!-- endinject -->
 
 		<!-- Tweaks to the UI for a particular theme should drop here  -->
@@ -97,6 +98,7 @@ $request = Services::request();
     <?= view('partial/lang_lines') ?>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.1/js/bootstrap-select.min.js"></script>
 
     <style type="text/css">
         html {
@@ -108,7 +110,7 @@ $request = Services::request();
 <body>
     <div class="wrapper">
         <div class="topbar">
-            <div class="container">
+            <div class="container-fluid">
                 <div class="navbar-left">
                     <div id="liveclock"><?= date($config['dateformat'] . ' ' . $config['timeformat']) ?></div>
                 </div>
@@ -126,7 +128,7 @@ $request = Services::request();
         </div>
 
         <div class="navbar navbar-default" role="navigation">
-            <div class="container">
+            <div class="container-fluid">
                 <div class="navbar-header">
                     <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target=".navbar-collapse">
                         <span class="sr-only">Toggle navigation</span>
@@ -154,5 +156,5 @@ $request = Services::request();
         </div>
 			</div>
 		</div>
-		<div class="container">
+		<div class="container-fluid">
 			<div class="row">

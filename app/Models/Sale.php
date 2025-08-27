@@ -21,6 +21,10 @@ class Sale extends Model
     protected $allowedFields = [
         'sale_time',
         'customer_id',
+        'vehicle_id',           // Add this
+        'vehicle_kilometer',    // Add this
+        'vehicle_avg_oil_km',   // Add this
+        'vehicle_avg_km_day',   // Add this
         'employee_id',
         'comment',
         'quote_number',
@@ -542,7 +546,11 @@ class Sale extends Model
      * @throws ReflectionException
      */
     public function save_value(int $sale_id, string &$sale_status, array &$items, int $customer_id, int $employee_id, string $comment, ?string $invoice_number,
-                            ?string $work_order_number, ?string $quote_number, int $sale_type, ?array $payments, ?int $dinner_table_id, ?array &$sales_taxes): int    //TODO: this method returns the sale_id but the override is expecting it to return a bool. The signature needs to be reworked.  Generally when there are more than 3 maybe 4 parameters, there's a good chance that an object needs to be passed rather than so many params.
+                            ?string $work_order_number, ?string $quote_number, int $sale_type, ?array $payments, ?int $dinner_table_id, ?array &$sales_taxes, ?int $vehicle_id = null,          // Add this parameter
+    ?int $vehicle_kilometer = null,   // Add this parameter
+    ?int $vehicle_avg_oil_km = null,  // Add this parameter
+    ?int $vehicle_avg_km_day = null   // Add this parameter
+): int    //TODO: this method returns the sale_id but the override is expecting it to return a bool. The signature needs to be reworked.  Generally when there are more than 3 maybe 4 parameters, there's a good chance that an object needs to be passed rather than so many params.
     {
         $config = config(OSPOS::class)->settings;
         $attribute = model(Attribute::class);
@@ -573,7 +581,11 @@ class Sale extends Model
             'quote_number' => $quote_number,
             'work_order_number'=> $work_order_number,
             'dinner_table_id' => $dinner_table_id,
-            'sale_type' => $sale_type
+            'sale_type' => $sale_type,
+            'vehicle_id' => $vehicle_id,                    // Add this
+            'vehicle_kilometer' => $vehicle_kilometer,      // Add this
+            'vehicle_avg_oil_km' => $vehicle_avg_oil_km,    // Add this
+            'vehicle_avg_km_day' => $vehicle_avg_km_day,    // Add this
         ];
 
         // Run these queries as a transaction, we want to make sure we do all or nothing
@@ -881,7 +893,10 @@ class Sale extends Model
     public function get_sale_items(int $sale_id): ResultInterface
     {
         $builder = $this->db->table('sales_items');
-        $builder->where('sale_id', $sale_id);
+        $builder->select('sales_items.*, items.name, items.item_number, items.category, items.description as item_description');
+        $builder->join('items', 'items.item_id = sales_items.item_id', 'left');
+        $builder->where('sales_items.sale_id', $sale_id);
+        $builder->orderBy('sales_items.line', 'ASC');
 
         return $builder->get();
     }

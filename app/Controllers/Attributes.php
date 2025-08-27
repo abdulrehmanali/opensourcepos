@@ -71,7 +71,7 @@ class Attributes extends Secure_Controller
             $this->request->getPost('attribute_id', FILTER_SANITIZE_NUMBER_INT) ?? false
         );
 
-        echo json_encode(['success' => $success != 0]);
+        echo json_encode(['success' => $success != 0, 'id'=>$success]);
     }
 
     /**

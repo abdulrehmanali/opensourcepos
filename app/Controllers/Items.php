@@ -278,6 +278,7 @@ class Items extends Secure_Controller
 			$data = [];
 		}
 
+    $db = db_connect();
 		$data['allow_temp_item'] = $this->session->get('allow_temp_items'); //allow_temp_items is set in the index function of items.php or sales.php
 		$data['item_tax_info'] = $this->item_taxes->get_info($item_id);
 		$data['default_tax_1_rate'] = '';
@@ -285,6 +286,13 @@ class Items extends Secure_Controller
 		$data['item_kit_disabled'] = !$this->employee->has_grant('item_kits', $this->employee->get_logged_in_employee_info()->person_id);
 		$data['definition_values'] = $this->attribute->get_attributes_by_item($item_id);
 		$data['definition_names'] = $this->attribute->get_definition_names();
+
+    $distinctCategories = $db->table('item_categories')->select('name')->distinct()->get()->getResultArray();
+    $distinctCategories = array_column($distinctCategories, 'name');
+    $data['categories'] = [];
+    foreach ($distinctCategories as  $value) {
+      $data['categories'][$value] = $value;
+    }
 
 		foreach($data['definition_values'] as $definition_id => $definition)
 		{
@@ -301,12 +309,14 @@ class Items extends Secure_Controller
 
 		if($data['category_dropdown'] === '1')
 		{
-			$categories = ['' => lang('Items.none')];
-			$category_options = $this->attribute->get_definition_values(CATEGORY_DEFINITION_ID);
-			$category_options = array_combine($category_options,$category_options);	//Overwrite indexes with values for saving in items table instead of attributes
-			$data['categories'] = array_merge($categories,$category_options);
+			// $categories = ['' => lang('Items.none')];
+			// $category_options = $this->attribute->get_definition_values(CATEGORY_DEFINITION_ID);
+			// $category_options = array_combine($category_options,$category_options);	//Overwrite indexes with values for saving in items table instead of attributes
+			// $data['categories'] = array_merge($categories,$category_options);
 
-			$data['selected_category'] = $item_info->category;
+		  $category_results = $db->table('item_categories')->where('item_id', $item_id)->get()->getResultArray();
+		  $data['selected_category'] = array_column($category_results, 'name');
+			// $data['selected_category'] = $item_info->category;
 		}
 
 		if($item_id === NEW_ENTRY)
@@ -327,6 +337,7 @@ class Items extends Secure_Controller
 			{
 				$item_info->tax_category_id = $this->config['default_tax_category'];
 			}
+      $data['selected_category'] = [];
 		}
 
 		$data['standard_item_locked'] = (
@@ -340,6 +351,7 @@ class Items extends Secure_Controller
 			$item_info->item_id = NEW_ENTRY;
 		}
 		$data['item_info'] = $item_info;
+		// Fetch categories for the item from item_categories table
 
 		$suppliers = ['' => lang('Items.none')];
 
@@ -443,6 +455,14 @@ class Items extends Secure_Controller
 			$data['selected_low_sell_item'] = '';
 		}
 
+    $data['unit_options'] = ['mL' => 'mL', 'L' => 'L', 'g' => 'g', 'kg' => 'kg', 'piece' => 'Piece'];
+    $data['selected_unit'] = $item_info->pack_name ?? 'mL';
+
+    $data['price_per_unit'] = '';
+    if (!empty($item_info->unit_price) && !empty($item_info->qty_per_pack) && $item_info->qty_per_pack > 0) {
+        $data['price_per_unit'] = round($item_info->unit_price / $item_info->qty_per_pack, 2);
+    }
+    // echo (json_encode($data));
 		echo view('items/form', $data);
 	}
 
@@ -548,7 +568,7 @@ class Items extends Secure_Controller
 		$definition_ids = json_decode($this->request->getGet('definition_ids') ?? '', true);
 		$data['definition_values'] = $this->attribute->get_attributes_by_item($item_id) + $this->attribute->get_values_by_definitions($definition_ids);
 
-    if ($item_id = NEW_ENTRY) {
+    if ($item_id == NEW_ENTRY) {
       foreach ($data['definition_names'] as $def_id => $definition_name) {
         if (!$data['definition_values']) {
           $data['definition_values'] = json_decode('[]', true);
@@ -581,9 +601,44 @@ class Items extends Secure_Controller
 
 			unset($data['definition_names'][$definition_id]);
 		}
-
 		echo view('attributes/item', $data);
 	}
+
+  // 	public function getAttributes(int $item_id = NEW_ENTRY): void
+	// {
+	// 	$data['item_id'] = $item_id;
+  //   $data['definition_names'] = $this->attribute->get_definition_names();
+	// 	$definition_ids = json_decode($this->request->getGet('definition_ids') ?? '', true);
+	// 	$data['definition_values'] = $this->attribute->get_attributes_by_item($item_id) + $this->attribute->get_values_by_definitions($definition_ids);
+
+  //   if ($item_id == NEW_ENTRY) {
+  //     foreach ($data['definition_names'] as $def_id => $definition_name) {
+  //       if (!$data['definition_values']) {
+  //         $data['definition_values'] = json_decode('[]', true);
+  //       }
+  //       $info = $this->attribute->getAttributeInfo($def_id);
+  //       $data['definition_values'][$def_id] = $info;
+  //     }
+  //     $data['definition_values'] = json_decode(json_encode($data['definition_values']), true);
+  //   }
+	// 	foreach($data['definition_values'] as $definition_id => $definition_value)
+	// 	{
+	// 		$attribute_value = $this->attribute->get_attribute_value($item_id, $definition_id);
+  //     $link_value = $this->attribute->get_link_value($item_id, $definition_id);
+	// 		$attribute_id = (empty($attribute_value) || empty($attribute_value->attribute_id)) ? null : $attribute_value->attribute_id;
+	// 		$values = $data['definition_values'][$definition_id];
+	// 		$values['attribute_id'] = $attribute_id;
+	// 		$values['attribute_value'] = (empty($attribute_value) || empty($attribute_value->attribute_value)) ? null : $attribute_value->attribute_value;
+	// 		// $values['selected_value'] = $link_value;
+
+	// 		if ($definition_value['definition_type'] === DROPDOWN){
+	// 			$values['values'] = $this->attribute->get_definition_values($definition_id);
+	// 		}
+  //     $data['definition_values'][$definition_id] = $values;
+	// 		unset($data['definition_names'][$definition_id]);
+	// 	}
+  //   echo json_encode($data);
+	// }
 
 	/**
 	 * @param int $item_id
@@ -662,8 +717,15 @@ class Items extends Secure_Controller
 	public function postSave(int $item_id = NEW_ENTRY): void
 	{
 		$upload_data = $this->upload_image();
-    $upload_pdf = $this->upload_pdf();
+		$upload_pdf = $this->upload_pdf();
 		$upload_success = empty($upload_data['error']);
+
+		// If image upload failed, do not save the item
+		if (!$upload_success && !empty($upload_data['error'])) {
+			$message = strip_tags($upload_data['error']);
+			echo json_encode(['success' => false, 'message' => $message, 'id' => NEW_ENTRY]);
+			return;
+		}
 
 		$raw_receiving_quantity = $this->request->getPost('receiving_quantity');
 
@@ -681,12 +743,12 @@ class Items extends Secure_Controller
 		$unit_price = parse_decimals($this->request->getPost('unit_price'));
 		$reorder_level = parse_quantity($this->request->getPost('reorder_level'));
 		$qty_per_pack = parse_quantity($this->request->getPost('qty_per_pack') ?? '');
+    $categories = $this->request->getPost('category[]');
 
 		//Save item data
 		$item_data = [
 			'name' => $this->request->getPost('name'),
 			'description' => $this->request->getPost('description'),
-			'category' => $this->request->getPost('category'),
 			'item_type' => $item_type,
 			'stock_type' => $this->request->getPost('stock_type') === null ? HAS_STOCK : intval($this->request->getPost('stock_type')),
 			'supplier_id' => empty($this->request->getPost('supplier_id')) ? null : intval($this->request->getPost('supplier_id')),
@@ -732,13 +794,24 @@ class Items extends Secure_Controller
 
 		$employee_id = $this->employee->get_logged_in_employee_info()->person_id;
 
-		if($this->item->save_value($item_data, $item_id))
-		{
+    $item_data['single_unit_quantity'] = $this->request->getPost('single_unit_quantity') ?? 0;
+    $item_data['pack_name'] = $this->request->getPost('pack_name') ?? 'mL';
+
+		$item_saved = $this->item->save_value($item_data, $item_id);
+
+		// If item save fails, delete the uploaded image
+		if (!$item_saved && !empty($item_data['pic_filename'])) {
+			$image_path = FCPATH . 'uploads/item_pics/' . $item_data['pic_filename'];
+			if (file_exists($image_path)) {
+				@unlink($image_path);
+			}
+		}
+
+		if ($item_saved) {
 			$success = true;
 			$new_item = false;
 
-			if($item_id === NEW_ENTRY)
-			{
+			if ($item_id === NEW_ENTRY) {
 				$item_id = $item_data['item_id'];
 				$new_item = true;
 			}
@@ -802,38 +875,45 @@ class Items extends Secure_Controller
 					$success &= $this->inventory->insert($inv_data, false);
 				}
 			}
+      error_log($item_id);
+      error_log('saveItemAttributes');
 			$this->saveItemAttributes($item_id);
 
-			if($success && $upload_success)
-			{
+      // Insert item categories into item_categories table
+      if (!empty($categories) && is_array($categories)) {
+        $db = db_connect();
+        $db->table('item_categories')->where('item_id', $item_id)->delete();
+
+        foreach ($categories as $category) {
+          $db->table('item_categories')->insert([
+            'item_id' => $item_id,
+            'name' => $category
+          ]);
+        }
+      }
+
+			if ($success && $upload_success) {
 				$message = lang('Items.successful_' . ($new_item ? 'adding' : 'updating')) . ' ' . $item_data['name'];
-
-				echo json_encode (['success' => true, 'message' => $message, 'id' => $item_id]);
-			}
-			else
-			{
+				echo json_encode(['success' => true, 'message' => $message, 'id' => $item_id]);
+			} else {
 				$message = $upload_success ? lang('Items.error_adding_updating') . ' ' . $item_data['name'] : strip_tags($upload_data['error']);
-
-				echo json_encode (['success' => false, 'message' => $message, 'id' => $item_id]);
+				echo json_encode(['success' => false, 'message' => $message, 'id' => $item_id]);
 			}
-		}
-		else
-		{
+		} else {
 			$message = lang('Items.error_adding_updating') . ' ' . $item_data['name'];
-
-			echo json_encode (['success' => false, 'message' => $message, 'id' => NEW_ENTRY]);
+			echo json_encode(['success' => false, 'message' => $message, 'id' => NEW_ENTRY]);
 		}
 	}
 
 	/**
-	 * Let files be uploaded with their original name
+	 * Let files be uploaded with their original name, always converting to PNG format.
 	 * @return array
 	 */
 	private function upload_image(): array
 	{
 		$file = $this->request->getFile('items_image');
-		if(!$file)
-		{
+
+		if (!$file) {
 			return [];
 		}
 
@@ -842,32 +922,43 @@ class Items extends Secure_Controller
 			'items_image' => [
 				'label' => 'Item Image',
 				'rules' => [
-					'uploaded[items_image]',
 					'is_image[items_image]',
 					'max_size[items_image,' . $this->config['image_max_size'] . ']',
 					'mime_in[items_image,image/png,image/jpg,image/jpeg,image/gif]',
 					'ext_in[items_image,' . $this->config['image_allowed_types'] . ']',
-					'max_dims[items_image,' . $this->config['image_max_width'] . ',' . $this->config['image_max_height'] . ']'
 				]
 			]
 		];
 
-		if (!$this->validate($validation_rule))
-		{
-			return (['error' => $this->validator->getError('items_image')]);
+		if (!$this->validate($validation_rule)) {
+			return ['error' => $this->validator->getError('items_image')];
 		}
 
 		$filename = $file->getClientName();
 		$info = pathinfo($filename);
 
+		// Always use PNG extension for saving
 		$file_info = [
 			'orig_name' => $filename,
 			'raw_name' => $info['filename'],
-			'file_ext' => $file->guessExtension()
+			'file_ext' => 'png'
 		];
 
-		$file->move(FCPATH . 'uploads/item_pics/', $file_info['raw_name'] . '.' . $file_info['file_ext'], true);
-		return ($file_info);
+		try {
+			$destination = FCPATH . 'uploads/item_pics/' . $file_info['raw_name'] . '.png';
+
+			// Use CodeIgniter's image service to convert to PNG
+			$image = Services::image()
+				->withFile($file->getTempName())
+				->resize(800, 800, true)
+				->convert(IMAGETYPE_PNG)
+				->save($destination, 80);
+
+			return $file_info;
+		} catch (\Throwable $th) {
+			log_message('error', print_r($th, true));
+			return ['error' => 'Image conversion or save failed'];
+		}
 	}
 
   /**
@@ -887,7 +978,6 @@ class Items extends Secure_Controller
 			'items_pdf' => [
 				'label' => 'Item Image',
 				'rules' => [
-					'uploaded[items_pdf]',
 					'is_image[items_pdf]',
 					'max_size[items_pdf,' . $this->config['image_max_size'] . ']',
 					'mime_in[items_pdf,application/pdf]',
@@ -911,8 +1001,13 @@ class Items extends Secure_Controller
 			'file_ext' => $file->guessExtension()
 		];
 
-		$file->move(FCPATH . 'uploads/item_pdfs/', $file_info['raw_name'] . '.' . $file_info['file_ext'], true);
-		return ($file_info);
+    try {
+      $file->move(FCPATH . 'uploads/item_pdfs/', $file_info['raw_name'] . '.' . $file_info['file_ext'], true);
+		  return ($file_info);
+    } catch (\Throwable $th) {
+      error_log($th);
+      return [];
+    }
 	}
 
 	/**
@@ -1391,12 +1486,14 @@ class Items extends Secure_Controller
 		$attribute_id = $this->attribute->attributeValueExists($value, $attribute_data['definition_type']);
 
 		$this->attribute->deleteAttributeLinks($item_id, $attribute_data['definition_id']);
+    error_log('saveAttributeLink');
+    error_log($item_id);
 
 		if(!$attribute_id)
 		{
 			$attribute_id = $this->attribute->saveAttributeValue($value, $attribute_data['definition_id'], $item_id, false, $attribute_data['definition_type']);
 		}
-		else if(!$this->attribute->saveAttributeLink($item_id, $attribute_data['definition_id'], $attribute_id))
+    		else if(!$this->attribute->saveAttributeLink((int)$item_id, $attribute_data['definition_id'], $attribute_id))
 		{
 			return false;
 		}
@@ -1513,6 +1610,12 @@ class Items extends Secure_Controller
 	 */
 	public function saveItemAttributes(int $itemId): void
 	{
+		// Early return if $itemId is not an integer
+		if (!is_int($itemId)) {
+			log_message('error', 'Invalid itemId in saveItemAttributes: ' . print_r($itemId, true));
+			return;
+		}
+
 		$attributeLinks = $this->request->getPost('attribute_links') ?? [];
 		$attributeIds = $this->request->getPost('attribute_ids');
 
@@ -1525,17 +1628,20 @@ class Items extends Secure_Controller
 			switch($definitionType)
 			{
 				case DROPDOWN:
-					$attributeId = $attributeValue;
+					$attributeId = (int) $attributeValue;
 					break;
 				case DECIMAL:
 					$attributeValue = parse_decimals($attributeValue);
 				//Fall through to save the attribute value
 				default:
-					$attributeId = $this->attribute->saveAttributeValue($attributeValue, $definitionId, $itemId, $attributeIds[$definitionId], $definitionType);
+					$attributeId = (int) $this->attribute->saveAttributeValue($attributeValue, $definitionId, $itemId, $attributeIds[$definitionId], $definitionType);
 					break;
 			}
-
-			$this->attribute->saveAttributeLink($itemId, $definitionId, $attributeId);
+      if (!is_int($attributeId)) {
+        log_message('error', 'Invalid itemId in saveItemAttributes:attributeId:  ' . print_r($attributeId, true));
+        continue;
+		  }
+			$this->attribute->saveAttributeLink((int)$itemId, $definitionId, $attributeId);
 		}
 	}
 

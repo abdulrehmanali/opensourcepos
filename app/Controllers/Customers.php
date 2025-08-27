@@ -531,4 +531,191 @@ class Customers extends Persons
         }
     }
 
+    /**
+     * Get customer by phone number or create new customer if not found
+     */
+    public function byPhoneNumberOrCreateCustomer(): void
+    {
+        $phone_number = $this->request->getGet('phone_number');
+        $customer_name = $this->request->getGet('customer_name');
+        
+        if (empty($phone_number)) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Phone number is required'
+            ]);
+            return;
+        }
+
+        // First try to find existing customer
+        $customer = $this->customer->get_customer_by_phone($phone_number);
+        
+        if ($customer) {
+            // Customer found - return existing customer
+            echo json_encode([
+                'success' => true,
+                'customer' => [
+                    'person_id' => $customer->person_id,
+                    'first_name' => $customer->first_name,
+                    'last_name' => $customer->last_name,
+                    'phone_number' => $customer->phone_number,
+                    'email' => $customer->email ?? '',
+                    'full_name' => $customer->first_name . ' ' . $customer->last_name
+                ],
+                'created' => false
+            ]);
+            return;
+        }
+
+        // Customer not found - create new customer
+        try {
+            // Parse customer name
+            $first_name = 'Customer';
+            $last_name = '';
+            
+            if (!empty($customer_name) && trim($customer_name) !== '') {
+                $name_parts = explode(' ', trim($customer_name), 2);
+                $first_name = $this->nameize($name_parts[0]);
+                if (isset($name_parts[1])) {
+                    $last_name = $this->nameize($name_parts[1]);
+                }
+            }
+
+            // Prepare person data
+            $person_data = [
+                'first_name' => $first_name,
+                'last_name' => $last_name,
+                'gender' => null,
+                'email' => '',
+                'phone_number' => $phone_number,
+                'address_1' => '',
+                'address_2' => '',
+                'city' => '',
+                'state' => '',
+                'zip' => '',
+                'country' => '',
+                'comments' => 'Auto-created from sales register'
+            ];
+
+            // Prepare customer data
+            $customer_data = [
+                'consent' => false,
+                'account_number' => null,
+                'tax_id' => '',
+                'company_name' => null,
+                'discount' => 0.00,
+                'discount_type' => PERCENT,
+                'package_id' => null,
+                'taxable' => true,
+                'date' => date('Y-m-d H:i:s'),
+                'employee_id' => $this->employee->get_logged_in_employee_info()->person_id,
+                'sales_tax_code_id' => null
+            ];
+
+            // Save the new customer
+            if ($this->customer->save_customer($person_data, $customer_data, NEW_ENTRY)) {
+                // Get the newly created customer ID
+                 $new_customer = $this->customer->get_customer_by_phone($phone_number);                
+                echo json_encode([
+                    'success' => true,
+                    'customer' => [
+                        'person_id' => $new_customer->person_id,
+                        'first_name' => $new_customer->first_name,
+                        'last_name' => $new_customer->last_name,
+                        'phone_number' => $new_customer->phone_number,
+                        'email' => $new_customer->email ?? '',
+                        'full_name' => $new_customer->first_name . ' ' . $new_customer->last_name
+                    ],
+                    'created' => true,
+                    'message' => 'New customer created: ' . $new_customer->first_name . ' ' . $new_customer->last_name
+                ]);
+            } else {
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Failed to create new customer'
+                ]);
+            }
+        } catch (\Exception $e) {
+            log_message('error', 'Customer creation error: ' . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error creating customer: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get customer by phone number
+     */
+    public function byPhoneNumber(): void
+    {
+        $phone_number = $this->request->getGet('phone_number');
+        
+        if (empty($phone_number)) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Phone number is required'
+            ]);
+            return;
+        }
+
+        $customer = $this->customer->get_customer_by_phone($phone_number);
+        
+        if ($customer) {
+            echo json_encode([
+                'success' => true,
+                'customer' => [
+                    'person_id' => $customer->person_id,
+                    'first_name' => $customer->first_name,
+                    'last_name' => $customer->last_name,
+                    'phone_number' => $customer->phone_number,
+                    'email' => $customer->email ?? '',
+                    'full_name' => $customer->first_name . ' ' . $customer->last_name
+                ]
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Customer not found'
+            ]);
+        }
+    }
+
+    /**
+     * Get customer by ID
+     */
+    public function customerById(): void
+    {
+        $customer_id = $this->request->getGet('customer_id');
+        
+        if (empty($customer_id)) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Customer ID is required'
+            ]);
+            return;
+        }
+
+        $customer = $this->customer->get_info($customer_id);
+        
+        if ($customer && $customer->person_id) {
+            echo json_encode([
+                'success' => true,
+                'customer' => [
+                    'person_id' => $customer->person_id,
+                    'first_name' => $customer->first_name,
+                    'last_name' => $customer->last_name,
+                    'phone_number' => $customer->phone_number,
+                    'email' => $customer->email ?? '',
+                    'full_name' => $customer->first_name . ' ' . $customer->last_name
+                ]
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Customer not found'
+            ]);
+        }
+    }
+
 }

@@ -282,7 +282,7 @@ class Sale_lib
      */
     public function get_sale_type(): ?int
     {
-        return $this->session->get('sale_type', 0);
+        return (int) $this->session->get('sale_type', 0);
     }
 
     /**
@@ -811,6 +811,36 @@ class Sale_lib
     public function set_customer(int $customer_id): void
     {
         $this->session->set('sales_customer', $customer_id);
+    }
+
+    /**
+     * @param int $vehicle_id
+     * @return void
+     */
+    public function set_vehicle(int $vehicle_id): void
+    {
+        $this->session->set('sales_vehicle', $vehicle_id);
+    }
+    
+    // Get Vehicle ID
+    /**
+     * @return int|null
+     */
+    public function get_vehicle(): ?int
+    {
+        if(!$this->session->get('sales_vehicle'))
+        {
+            $this->set_vehicle(-1);    //TODO: Replace null with a constant
+        }
+        return $this->session->get('sales_vehicle');
+    }
+
+    /**
+     * @return void
+     */
+    public function remove_vehicle(): void
+    {
+        $this->session->remove('sales_vehicle');
     }
 
     /**
@@ -1479,6 +1509,7 @@ class Sale_lib
         $this->empty_payments();
         $this->remove_customer();
         $this->clear_cash_flags();
+        $this->clear_vehicle_data(); // Add this line to clear all vehicle data
     }
 
     /**
@@ -1796,4 +1827,176 @@ class Sale_lib
 
         return Rounding_mode::round_number($cash_rounding_code, (float)$total, $cash_decimals);
     }
+
+    /**
+     * Vehicle kilometer functions
+     */
+
+/**
+ * @param int|null $kilometer
+ * @return void
+ */
+public function set_vehicle_kilometer(?int $kilometer): void
+{
+    $this->session->set('vehicle_kilometer', $kilometer);
+}
+
+/**
+ * @return int|null
+ */
+public function get_vehicle_kilometer(): ?int
+{
+    return (int)$this->session->get('vehicle_kilometer');
+}
+
+/**
+ * @return void
+ */
+public function clear_vehicle_kilometer(): void
+{
+    $this->session->remove('vehicle_kilometer');
+}
+
+/**
+ * Vehicle average oil km functions
+ */
+
+/**
+ * @param int|null $avg_oil_km
+ * @return void
+ */
+public function set_vehicle_avg_oil_km(?int $avg_oil_km): void
+{
+    $this->session->set('vehicle_avg_oil_km', $avg_oil_km);
+}
+
+/**
+ * @return int|null
+ */
+public function get_vehicle_avg_oil_km(): ?int
+{
+    return (int) $this->session->get('vehicle_avg_oil_km');
+}
+
+/**
+ * @return void
+ */
+public function clear_vehicle_avg_oil_km(): void
+{
+    $this->session->remove('vehicle_avg_oil_km');
+}
+
+/**
+ * Vehicle average km per day functions
+ */
+
+/**
+ * @param int|null $avg_km_day
+ * @return void
+ */
+public function set_vehicle_avg_km_day(?int $avg_km_day): void
+{
+    $this->session->set('vehicle_avg_km_day', $avg_km_day);
+}
+
+/**
+ * @return int|null
+ */
+public function get_vehicle_avg_km_day(): ?int
+{
+    return (int) $this->session->get('vehicle_avg_km_day');
+}
+
+/**
+ * @return void
+ */
+public function clear_vehicle_avg_km_day(): void
+{
+    $this->session->remove('vehicle_avg_km_day');
+}
+
+/**
+ * Vehicle next visit functions
+ */
+
+/**
+ * @param string|null $next_visit
+ * @return void
+ */
+public function set_vehicle_next_visit(?string $next_visit): void
+{
+    $this->session->set('vehicle_next_visit', $next_visit);
+}
+
+/**
+ * @return string|null
+ */
+public function get_vehicle_next_visit(): ?string
+{
+    return $this->session->get('vehicle_next_visit');
+}
+
+/**
+ * @return void
+ */
+public function clear_vehicle_next_visit(): void
+{
+    $this->session->remove('vehicle_next_visit');
+}
+
+/**
+ * Vehicle data bulk functions
+ */
+
+/**
+ * Set all vehicle data at once
+ * 
+ * @param array $vehicle_data
+ * @return void
+ */
+public function set_vehicle_data(array $vehicle_data): void
+{
+    if (isset($vehicle_data['kilometer'])) {
+        $this->set_vehicle_kilometer($vehicle_data['kilometer']);
+    }
+    if (isset($vehicle_data['last_avg_oil_km'])) {
+        $this->set_vehicle_avg_oil_km($vehicle_data['last_avg_oil_km']);
+    }
+    if (isset($vehicle_data['last_avg_km_day'])) {
+        $this->set_vehicle_avg_km_day($vehicle_data['last_avg_km_day']);
+    }
+    if (isset($vehicle_data['last_next_visit'])) {
+        $this->set_vehicle_next_visit($vehicle_data['last_next_visit']);
+    }
+}
+
+/**
+ * Get all vehicle data
+ * 
+ * @return array
+ */
+public function get_vehicle_data(): array
+{
+    return [
+        'vehicle_id' => $this->get_vehicle(),
+        'kilometer' => $this->get_vehicle_kilometer(),
+        'last_avg_oil_km' => $this->get_vehicle_avg_oil_km(),
+        'last_avg_km_day' => $this->get_vehicle_avg_km_day(),
+        'last_next_visit' => $this->get_vehicle_next_visit()
+    ];
+}
+
+/**
+ * Clear all vehicle data
+ * 
+ * @return void
+ */
+public function clear_vehicle_data(): void
+{
+    $this->clear_vehicle_kilometer();
+    $this->clear_vehicle_avg_oil_km();
+    $this->clear_vehicle_avg_km_day();
+    $this->clear_vehicle_next_visit();
+    $this->remove_vehicle();
+}
 }

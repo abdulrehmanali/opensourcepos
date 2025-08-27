@@ -169,39 +169,61 @@ foreach ($definition_values as $definition_id => $definition_value) {
     });
 
     $('.select-2-new-item-attributes').each(function() {
-      const $select = $(this); // 👈 capture the current element
+      const $select = $(this);
+
       $select.select2({
         tags: true,
-        // dropdownParent: $(".modal.bootstrap-dialog.modal-dlg").first(),
         createTag: function(params) {
-          console.log('createTag')
           var term = $.trim(params.term);
-
-          if (term === '') {
-            return null;
-          }
-
-          console.log(term)
+          if (term === '') return null;
 
           return {
-            id: term,
+            id: term, // temporary id
             text: term,
-            newTag: true // add additional parameters
-          }
+            newTag: true
+          };
         },
         insertTag: function(data, tag) {
-          console.log('insertTag')
-          console.log(data)
-          // Insert the tag at the end of the results
           data.push(tag);
         }
-      }).on('select2:select', function (e) {
+      }).on('select2:select', function(e) {
         const data = e.params.data;
-        // Check if it's a new tag (Select2 marks it like this)
+
         if (data.id === data.text && data.newTag) {
           $.post('attributes/saveAttributeValue/', {
             definition_id: $select.data('definition-id'),
             attribute_value: data.text
+          }, function(response) {
+            response = JSON.parse(response)
+            // Assume response contains the real ID returned from the server
+            const newId = response.id || response; // support both plain id or { id: x }
+
+            // Replace the temporary tag with the one having the real ID
+            const newOption = new Option(data.text, newId, true, true);
+            $select.append(newOption).trigger('change');
+            
+
+            // Remove the temporary option
+            // console.log(data.text)
+            // console.log($select.find('option[value="' + data.id + '"]'))
+            // $select.find('option[value="' + data.id + '"]').remove();
+            $select.find('option[value="' + data.text + '"]').remove();
+          });
+        }
+      }).on('change', function(e) {
+        const $changedSelect = $(this);
+        const selectedOption = $changedSelect.find("option:selected");
+        if (selectedOption.length && selectedOption.attr('data-select2-tag') === "true") {
+          const newTag = selectedOption.text();
+          $.post('attributes/saveAttributeValue/', {
+            definition_id: $changedSelect.data('definition-id'),
+            attribute_value: newTag
+          }, function(response) {
+            response = JSON.parse(response)
+            const newId = response.id || response;
+            const newOption = new Option(newTag, newId, true, true);
+            $changedSelect.append(newOption).trigger('change');
+            $changedSelect.find('option[value="' + newTag + '"]').remove();
           });
         }
       });
