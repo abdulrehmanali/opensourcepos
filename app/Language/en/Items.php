@@ -121,4 +121,7 @@ return [
 	"upc_database" => "Barcode Database",
 	"update" => "Update Item",
 	"use_inventory_menu" => "Use Inventory Menu",
+	"existing_products" => "Existing Products",
+	"search_products" => "Search products by name, barcode, or category",
+	"view_pdf" => "View PDF",
 ];

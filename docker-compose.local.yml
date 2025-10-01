@@ -1,0 +1,70 @@
+volumes:
+  uploads:
+    driver: local
+  logs:
+    driver: local
+  mysql:
+    driver: local
+
+networks:
+  app_net:
+
+services:
+  mysql:
+    image: mariadb:10.5
+    container_name: mysql
+    restart: always
+    expose:
+      - "3306"
+    networks:
+      - app_net
+    environment:
+      - MYSQL_ROOT_PASSWORD=pointofsale
+      - MYSQL_DATABASE=ospos
+      - MYSQL_USER=admin
+      - MYSQL_PASSWORD=pointofsale
+    # Initialize DB from the repo's SQL files on first run
+    volumes:
+      - ./app/Database:/docker-entrypoint-initdb.d:ro
+      - mysql:/var/lib/mysql:rw
+
+  ospos:
+    build:
+      context: .
+      target: ospos
+    container_name: ospos
+    restart: always
+    depends_on:
+      - mysql
+    ports:
+      - "89:80"
+    networks:
+      - app_net
+    environment:
+      - CI_ENVIRONMENT=production
+      - FORCE_HTTPS=false
+      - PHP_TIMEZONE=UTC
+      - MYSQL_USERNAME=admin
+      - MYSQL_PASSWORD=pointofsale
+      - MYSQL_DB_NAME=ospos
+      - MYSQL_HOST_NAME=mysql
+    # Persist writable dirs while keeping app code inside the image
+    volumes:
+      - uploads:/app/writable/uploads
+      - logs:/app/writable/logs
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    restart: always
+    depends_on:
+      - mysql
+    ports:
+      - "8000:80"
+    networks:
+      - app_net
+    environment:
+      - PMA_HOST=mysql
+      - PMA_PORT=3306
+      - PMA_USER=admin
+      - PMA_PASSWORD=pointofsale

@@ -1,0 +1,8 @@
+{
+  "name": "sales-register-scripts",
+  "scripts": {
+    "dev:react": "cd sales-register && npm run dev",
+    "build:react": "cd sales-register && npm run build",
+    "install:react": "cd sales-register && npm install"
+  }
+}

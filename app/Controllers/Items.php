@@ -1653,28 +1653,14 @@ class Items extends Secure_Controller
 	 */
 	public function getDuplicate(int $item_id): void
 	{
-		// $item_info = $this->item->get_info($item_id);
-		// if (!$item_info || empty($item_info->item_id)) {
-		// 	redirect()->to(base_url('items'))->with('error', lang('Items.error_adding_updating'));
-		// 	return;
-		// }
-
-		// // Convert to array and reset necessary fields
-		// $new_item_data = get_object_vars($item_info);
-		// foreach ($new_item_data as $key => $value) {
-		// 	if (!in_array($key, $this->item->allowedFields)) {
-		// 		unset($new_item_data[$key]);
-		// 	}
-		// }
-
-		// $new_item_data['name'] .= ' (Copy)';
-		// $new_item_data['deleted'] = 0;
-		// $new_item_data['item_type'] = ITEM;
-		// $new_item_data['stock_type'] = HAS_STOCK;
-
-		// // Set all fields at once in $_POST
-		// $this->request->setGlobal('post', $new_item_data);
-
 		$this->getView($item_id, true);
+	}
+
+	/**
+	 * Duplicate an item via URL route
+	 */
+	public function duplicate(int $item_id): void
+	{
+		$this->getDuplicate($item_id);
 	}
 }

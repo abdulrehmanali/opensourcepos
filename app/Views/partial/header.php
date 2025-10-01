@@ -27,7 +27,8 @@ $head_text = esc($config['company']);
 		<link rel="stylesheet" href="resources/css/jasny-bootstrap-40bf85f3ed.css">
 		<link rel="stylesheet" href="resources/css/bootstrap-datetimepicker-66374fba71.css">
 		<link rel="stylesheet" href="resources/css/bootstrap-select-66d5473b84.css">
-		<link rel="stylesheet" href="resources/css/bootstrap-table-beee084f97.css">
+		<link rel="stylesheet" href="resources/css/select2-e6de4a7c42.css">
+		<link rel="stylesheet" href="resources/css/bootstrap-table-82676db678.css">
 		<link rel="stylesheet" href="resources/css/bootstrap-table-sticky-header-07d65e7533.css">
 		<link rel="stylesheet" href="resources/css/daterangepicker-85523b7dfe.css">
 		<link rel="stylesheet" href="resources/css/chartist-c19aedb81a.css">
@@ -40,7 +41,7 @@ $head_text = esc($config['company']);
 		<link rel="stylesheet" href="resources/css/ospos-367a1bc0ae.css">
 		<link rel="stylesheet" href="resources/css/popupbox-57d6208379.css">
 		<link rel="stylesheet" href="resources/css/receipt-994a9a6ec5.css">
-		<link rel="stylesheet" href="resources/css/register-5816dbe267.css">
+		<link rel="stylesheet" href="resources/css/register-8237259258.css">
 		<link rel="stylesheet" href="resources/css/reports-70cb473319.css">
 		<!-- endinject -->
 		<!-- inject:debug:js -->
@@ -53,16 +54,17 @@ $head_text = esc($config['company']);
 		<script src="resources/js/jasny-bootstrap-7c6d7b8adf.js"></script>
 		<script src="resources/js/bootstrap-datetimepicker-25e39b7ef8.js"></script>
 		<script src="resources/js/bootstrap-select-b01896a67b.js"></script>
-		<script src="resources/js/bootstrap-table-4c3352caf1.js"></script>
-		<script src="resources/js/bootstrap-table-export-f57325d9d4.js"></script>
-		<script src="resources/js/bootstrap-table-mobile-6c4f14ac24.js"></script>
-		<script src="resources/js/bootstrap-table-sticky-header-46af2df131.js"></script>
+		<script src="resources/js/select2-c9fd03c389.js"></script>
+		<script src="resources/js/bootstrap-table-570cb32838.js"></script>
+		<script src="resources/js/bootstrap-table-export-cc364f2238.js"></script>
+		<script src="resources/js/bootstrap-table-mobile-51b4491e38.js"></script>
+		<script src="resources/js/bootstrap-table-sticky-header-480dbe84ff.js"></script>
 		<script src="resources/js/moment-d65dc6d2e6.min.js"></script>
 		<script src="resources/js/daterangepicker-048c56a690.js"></script>
 		<script src="resources/js/es6-promise-855125e6f5.js"></script>
 		<script src="resources/js/FileSaver-e73b1946e8.js"></script>
 		<script src="resources/js/html2canvas-e1d3a8d7cd.js"></script>
-		<script src="resources/js/jspdf-6eb90bf5a3.umd.js"></script>
+		<script src="resources/js/jspdf-4bad9ca248.umd.js"></script>
 		<script src="resources/js/jspdf-4f52bd767f.plugin.autotable.js"></script>
 		<script src="resources/js/tableExport-3d506dfa61.min.js"></script>
 		<script src="resources/js/chartist-8a7ecb4445.js"></script>
@@ -81,7 +83,7 @@ $head_text = esc($config['company']);
 		<!-- endinject -->
 	<?php else : ?>
 		<!--inject:prod:css -->
-		<link rel="stylesheet" href="resources/opensourcepos-2309d6a938.min.css">
+		<link rel="stylesheet" href="resources/opensourcepos-aa2b4871f7.min.css">
 		<!-- endinject -->
 
 		<!-- Tweaks to the UI for a particular theme should drop here  -->
@@ -90,15 +92,12 @@ $head_text = esc($config['company']);
 	<?php } ?>
 		<!-- inject:prod:js -->
 		<script src="resources/jquery-2c872dbe60.min.js"></script>
-		<script src="resources/opensourcepos-66d2329f3d.min.js"></script>
+		<script src="resources/opensourcepos-14a384eb5d.min.js"></script>
 		<!-- endinject -->
 	<?php endif; ?>
 
     <?= view('partial/header_js') ?>
     <?= view('partial/lang_lines') ?>
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.1/js/bootstrap-select.min.js"></script>
 
     <style type="text/css">
         html {
@@ -157,4 +156,3 @@ $head_text = esc($config['company']);
 			</div>
 		</div>
 		<div class="container-fluid">
-			<div class="row">

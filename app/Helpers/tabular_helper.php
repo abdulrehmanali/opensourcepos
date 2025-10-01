@@ -505,12 +505,15 @@ function get_item_data_row(object $item): array
     }
 
     $definition_names = $attribute->get_definitions_by_flags($attribute::SHOW_IN_ITEMS);
+    $db = db_connect();
+    $category_results = $db->table('item_categories')->where('item_id', $item->item_id)->get()->getResultArray();
+    $categories = array_column($category_results, 'name');
 
     $columns = [
         'items.item_id' => $item->item_id,
         'item_number' => $item->item_number,
         'name' => $item->name,
-        'category' => $item->category,
+        'category' => implode(', ', $categories),
         'company_name' => $item->company_name,    //TODO: This isn't in the items table. Should this be here?
         'cost_price' => to_currency($item->cost_price),
         'unit_price' => to_currency($item->unit_price),

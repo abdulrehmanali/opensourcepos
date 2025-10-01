@@ -111,6 +111,7 @@ gulp.task('debug-js', function() {
         './node_modules/jasny-bootstrap/dist/js/jasny-bootstrap.js',
         './node_modules/bootstrap-datetime-picker/js/bootstrap-datetimepicker.js',
         './node_modules/bootstrap-select/dist/js/bootstrap-select.js',
+        './node_modules/select2/dist/js/select2.js',
         './node_modules/bootstrap-table/dist/bootstrap-table.js',
         './node_modules/bootstrap-table/dist/extensions/export/bootstrap-table-export.js',
         './node_modules/bootstrap-table/dist/extensions/mobile/bootstrap-table-mobile.js',
@@ -150,6 +151,7 @@ gulp.task('prod-js', function() {
         './node_modules/bootstrap3-dialog/dist/js/bootstrap-dialog.min.js',
         './node_modules/jasny-bootstrap/dist/js/jasny-bootstrap.min.js',
         './node_modules/bootstrap-select/dist/js/bootstrap-select.min.js',
+        './node_modules/select2/dist/js/select2.min.js',
         './node_modules/bootstrap-table/dist/extensions/sticky-header/bootstrap-table-sticky-header.min.js',
         './node_modules/bootstrap-tagsinput-2021/dist/bootstrap-tagsinput.min.js',
         './node_modules/bootstrap-toggle/js/bootstrap-toggle.min.js',
@@ -197,6 +199,7 @@ gulp.task('debug-css', function() {
         './node_modules/jasny-bootstrap/dist/css/jasny-bootstrap.css',
         './node_modules/bootstrap-datetime-picker/css/bootstrap-datetimepicker.css',
         './node_modules/bootstrap-select/dist/css/bootstrap-select.css',
+        './node_modules/select2/dist/css/select2.css',
         './node_modules/bootstrap-table/dist/bootstrap-table.css',
         './node_modules/bootstrap-table/dist/extensions/sticky-header/bootstrap-table-sticky-header.css',
         './node_modules/bootstrap-daterangepicker/daterangepicker.css',
@@ -227,6 +230,7 @@ gulp.task('prod-css', function() {
         './node_modules/bootstrap-tagsinput-2021/src/bootstrap-tagsinput.css']).pipe(cleanCSS({compatibility: 'ie8'}));
 
     var opensourcepos3css = gulp.src(['./node_modules/bootstrap-select/dist/css/bootstrap-select.min.css',
+        './node_modules/select2/dist/css/select2.min.css',
         './node_modules/bootstrap-table/dist/bootstrap-table.min.css',
         './node_modules/bootstrap-table/dist/extensions/sticky-header/bootstrap-table-sticky-header.min.css',
         './node_modules/bootstrap-toggle/css/bootstrap-toggle.min.css',

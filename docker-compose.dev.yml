@@ -58,6 +58,8 @@ services:
           - app_net
         volumes:
           - .:/app
+        # Ensure deps are installed after bind-mounting the source
+        command: /bin/sh -lc 'chmod +x /app/docker/dev-entrypoint.sh && /app/docker/dev-entrypoint.sh'
         environment:
           - CI_ENVIRONMENT=development
           - MYSQL_USERNAME=admin
