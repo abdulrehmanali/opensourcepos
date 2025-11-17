@@ -190,10 +190,306 @@ class Sales extends Secure_Controller
       // if a valid receipt or invoice was found the search term will be replaced with a receipt number (POS #)
       $suggestions[] = $receipt;
     }
-    $suggestions = array_merge($suggestions, $this->item->get_search_suggestions($search, ['search_custom' => false, 'is_deleted' => false], true));
+    $suggestions = array_merge($suggestions, $this->item->get_search_suggestions($search, ['search_custom' => false, 'is_deleted' => 0], true));
     $suggestions = array_merge($suggestions, $this->item_kit->get_search_suggestions($search));
 
     echo json_encode($suggestions);
+  }
+
+  /**
+   * Initialize or get a sale record for the React sales register
+   * Creates a new sale if sale_id not provided or doesn't exist
+   * 
+   * @return void
+   * @noinspection PhpUnused
+   */
+  public function getInitSale(): void
+  {
+    $sale_id = $this->request->getGet('sale_id', FILTER_SANITIZE_NUMBER_INT);
+    
+    // If sale_id provided and valid, use it; otherwise create new sale
+    if($sale_id && $this->sale->exists($sale_id, true)) {
+      $existing_sale = $this->sale->get_info($sale_id)->getRow();
+      
+      // Load associated vehicle data if vehicle_id exists
+      $vehicle_data = null;
+      if(!empty($existing_sale->vehicle_id)) {
+        $vehicleModel = model(Vehicle::class);
+        $vehicle_data = $vehicleModel->find($existing_sale->vehicle_id);
+      }
+      
+      echo json_encode([
+        'success' => true,
+        'sale_id' => $sale_id,
+        'sale' => $existing_sale,
+        'vehicle' => $vehicle_data
+      ]);
+    } else {
+      // Create new sale record
+      $new_sale_data = [
+        'customer_id' => -1,
+        'employee_id' => $this->employee->get_logged_in_employee_info()->person_id,
+        'location_id' => $this->sale_lib->get_sale_location(),
+        'sale_time' => date('Y-m-d H:i:s'),
+        'comment' => '',
+        'mechanic_name' => '',
+        'total' => 0.00,
+        'amount_due' => 0.00,
+        'sale_type' => 0 // SALE type (from config constants)
+      ];
+      
+      // Insert new sale
+      $this->sale->insert($new_sale_data);
+      $new_sale_id = (int)$this->db->insertID();
+      
+      // Set in session for compatibility
+      $this->session->set('sale_id', $new_sale_id);
+      
+      echo json_encode([
+        'success' => true,
+        'sale_id' => $new_sale_id,
+        'message' => 'New sale created'
+      ]);
+    }
+  }
+
+  /**
+   * Save sale header data (customer, vehicle, comments, etc.)
+   * Used by React sales register to persist changes directly to DB
+   * 
+   * @return void
+   * @noinspection PhpUnused
+   */
+  public function postSaveSaleData(): void
+  {
+    $sale_id = $this->request->getPost('sale_id', FILTER_SANITIZE_NUMBER_INT);
+    $customer_id = $this->request->getPost('customer_id', FILTER_SANITIZE_NUMBER_INT);
+    $vehicle_id = $this->request->getPost('vehicle_id', FILTER_SANITIZE_NUMBER_INT);
+    $comment = $this->request->getPost('comment', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $mechanic_name = $this->request->getPost('mechanic_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    
+    // Payment data for saving
+    $payment_type = $this->request->getPost('payment_type', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $payment_amount = $this->request->getPost('payment_amount', FILTER_SANITIZE_NUMBER_FLOAT);
+    
+    // Vehicle data for saving
+    $vehicle_no = $this->request->getPost('vehicle_no', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $vehicle_kilometer = $this->request->getPost('vehicle_kilometer', FILTER_SANITIZE_NUMBER_FLOAT);
+    $vehicle_avg_oil_km = $this->request->getPost('vehicle_avg_oil_km', FILTER_SANITIZE_NUMBER_FLOAT);
+    $vehicle_avg_km_day = $this->request->getPost('vehicle_avg_km_day', FILTER_SANITIZE_NUMBER_FLOAT);
+    $vehicle_next_visit = $this->request->getPost('vehicle_next_visit', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    
+    if(!$sale_id) {
+      echo json_encode([
+        'success' => false,
+        'message' => 'Invalid sale ID'
+      ]);
+      return;
+    }
+    
+    // Update sale record with customer, mechanic name, and comment
+    $update_data = [];
+    if($customer_id !== null) {
+      $update_data['customer_id'] = $customer_id;
+    }
+    if($comment !== null) {
+      $update_data['comment'] = $comment;
+    }
+    if($mechanic_name !== null) {
+      $update_data['mechanic_name'] = $mechanic_name;
+    }
+    
+    $this->sale->update($sale_id, $update_data);
+    
+    // Save payment if provided
+    if($payment_type && $payment_amount !== null && $payment_amount > 0) {
+      try {
+        // Create a payment entry using sale_lib
+        $this->sale_lib->add_payment($payment_type, (float)$payment_amount);
+      } catch (\Exception $e) {
+        // Log error but don't block the save
+        log_message('error', 'Payment save error: ' . $e->getMessage());
+      }
+    }
+    
+    // Save vehicle data if vehicle_no is provided
+    if($vehicle_no) {
+      $vehicleModel = model(Vehicle::class);
+      $vehicle_data = [
+        'vehicle_no' => $vehicle_no,
+        'kilometer' => $vehicle_kilometer ? (float)$vehicle_kilometer : 0,
+        'last_avg_oil_km' => $vehicle_avg_oil_km ? (float)$vehicle_avg_oil_km : 0,
+        'last_avg_km_day' => $vehicle_avg_km_day ? (float)$vehicle_avg_km_day : 0,
+        'last_next_visit' => $vehicle_next_visit ? $vehicle_next_visit : '',
+        'last_customer_id' => $customer_id ? (int)$customer_id : -1
+      ];
+      
+      // Insert or update vehicle
+      $existing_vehicle = $vehicleModel->where('vehicle_no', $vehicle_no)->first();
+      if($existing_vehicle) {
+        $vehicleModel->update($existing_vehicle->id, $vehicle_data);
+      } else {
+        $vehicleModel->insert($vehicle_data);
+      }
+    }
+    
+    // Update session for compatibility
+    if($customer_id !== null) {
+      $this->sale_lib->set_customer($customer_id);
+    }
+    
+    echo json_encode([
+      'success' => true,
+      'message' => 'Sale data updated',
+      'sale_id' => $sale_id
+    ]);
+  }
+
+  /**
+   * Get the previous sale ID for navigation
+   * Used by sales register to navigate backward through sales
+   *
+   * @param int $sale_id
+   * @return void
+   * @noinspection PhpUnused
+   */
+  public function getPreviousSale($sale_id = null): void
+  {
+    if (!$sale_id) {
+      echo json_encode(['success' => false, 'message' => 'Invalid sale ID']);
+      return;
+    }
+
+    // Get the current sale to find its sale_time
+    $current_sale = $this->sale->get_info($sale_id)->getRow();
+    if (!$current_sale) {
+      echo json_encode(['success' => false, 'message' => 'Sale not found']);
+      return;
+    }
+
+    // Find the most recent sale before this one (by sale_time)
+    $previous = $this->sale->where('sale_time <', $current_sale->sale_time)
+      ->orderBy('sale_time', 'DESC')
+      ->limit(1)
+      ->get()
+      ->getRow();
+
+    if ($previous) {
+      echo json_encode(['success' => true, 'sale_id' => $previous->sale_id]);
+    } else {
+      echo json_encode(['success' => false, 'message' => 'No previous sale']);
+    }
+  }
+
+  /**
+   * Get the next sale ID for navigation
+   * Used by sales register to navigate forward through sales
+   *
+   * @param int $sale_id
+   * @return void
+   * @noinspection PhpUnused
+   */
+  public function getNextSale($sale_id = null): void
+  {
+    if (!$sale_id) {
+      echo json_encode(['success' => false, 'message' => 'Invalid sale ID']);
+      return;
+    }
+
+    // Get the current sale to find its sale_time
+    $current_sale = $this->sale->get_info($sale_id)->getRow();
+    if (!$current_sale) {
+      echo json_encode(['success' => false, 'message' => 'Sale not found']);
+      return;
+    }
+
+    // Find the earliest sale after this one (by sale_time)
+    $next = $this->sale->where('sale_time >', $current_sale->sale_time)
+      ->orderBy('sale_time', 'ASC')
+      ->limit(1)
+      ->get()
+      ->getRow();
+
+    if ($next) {
+      echo json_encode(['success' => true, 'sale_id' => $next->sale_id]);
+    } else {
+      echo json_encode(['success' => false, 'message' => 'No next sale']);
+    }
+  }
+
+  /**
+   * Return current cart via AJAX
+   * Used by the React frontend at /sales/getCart
+   *
+   * @return void
+   * @noinspection PhpUnused
+   */
+  public function getCart(): void
+  {
+    $cart = $this->sale_lib->get_cart();
+
+    echo json_encode([
+      'success' => true,
+      'cart' => $cart
+    ]);
+  }
+
+  /**
+   * Return the currently selected customer for the sale (if any)
+   * Used by the React frontend to pre-fill customer fields.
+   *
+   * @return void
+   * @noinspection PhpUnused
+   */
+  public function getCurrentCustomer(): void
+  {
+    $customer_id = $this->sale_lib->get_customer();
+
+    if ($customer_id != NEW_ENTRY && $customer_id != -1 && $this->customer->exists($customer_id)) {
+      $cust = $this->customer->get_info($customer_id);
+
+      $customer = [
+        'person_id' => $customer_id,
+        'first_name' => $cust->first_name ?? '',
+        'last_name' => $cust->last_name ?? '',
+        'full_name' => !empty($cust->company_name) ? $cust->company_name : trim(($cust->first_name ?? '') . ' ' . ($cust->last_name ?? '')),
+        'phone_number' => $cust->phone_number ?? '',
+        'email' => $cust->email ?? ''
+      ];
+
+      // Also include vehicle information where available. Prefer the currently-selected vehicle
+      $vehicle_info = null;
+      $vehicle_id = $this->sale_lib->get_vehicle();
+      $vehicleModel = model(Vehicle::class);
+      if ($vehicle_id && $vehicle_id != NEW_ENTRY && $vehicle_id != -1) {
+        $vehicle = $vehicleModel->find($vehicle_id);
+        if ($vehicle) {
+          $vehicle_info = [
+            'vehicle_no' => $vehicle->vehicle_no ?? '',
+            'kilometer' => $vehicle->kilometer ?? '',
+            'last_avg_oil_km' => $vehicle->last_avg_oil_km ?? '',
+            'last_avg_km_day' => $vehicle->last_avg_km_day ?? '',
+            'last_next_visit' => $vehicle->last_next_visit ?? ''
+          ];
+        }
+      } else {
+        // If no selected vehicle, try to find the most recent vehicle for this customer
+        $recent = $vehicleModel->where('last_customer_id', $customer_id)->orderBy('updated_at', 'DESC')->first();
+        if ($recent) {
+          $vehicle_info = [
+            'vehicle_no' => $recent->vehicle_no ?? '',
+            'kilometer' => $recent->kilometer ?? '',
+            'last_avg_oil_km' => $recent->last_avg_oil_km ?? '',
+            'last_avg_km_day' => $recent->last_avg_km_day ?? '',
+            'last_next_visit' => $recent->last_next_visit ?? ''
+          ];
+        }
+      }
+
+      echo json_encode(['success' => true, 'customer' => $customer, 'vehicle' => $vehicle_info]);
+    } else {
+      echo json_encode(['success' => false, 'customer' => null]);
+    }
   }
 
   /**
@@ -529,9 +825,66 @@ class Sales extends Secure_Controller
     }
 
     $item_id_or_number_or_item_kit_or_receipt = $this->request->getPost('item', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    // Parse barcode may set $quantity and $price by reference when a
+    // composite barcode (with qty/price) is scanned. We allow explicit
+    // POST values to override those parsed defaults so the frontend can
+    // send exact quantity/price/unit/discount values.
     $this->token_lib->parse_barcode($quantity, $price, $item_id_or_number_or_item_kit_or_receipt);
+
+    // If the frontend posted explicit values, use them instead of parsed ones.
+    $posted_quantity = $this->request->getPost('quantity');
+    if ($posted_quantity !== null && $posted_quantity !== '') {
+      $quantity = parse_decimals($posted_quantity);
+    }
+
+    $posted_price = $this->request->getPost('price');
+    if ($posted_price !== null && $posted_price !== '') {
+      $price = parse_decimals($posted_price);
+    }
+
+    // Unit is optional; if provided, pass it through. Default handling
+    // elsewhere will apply if unit is not used.
+    $unit = $this->request->getPost('unit', FILTER_SANITIZE_FULL_SPECIAL_CHARS) ?? null;
+
+    // Discount can be passed as absolute (currency) or percentage depending
+    // on frontend toggle. Accept numeric discount value when provided.
+    $posted_discount = $this->request->getPost('discount');
+    if ($posted_discount !== null && $posted_discount !== '') {
+      $discount = parse_decimals($posted_discount);
+    }
+
+    // discount_toggle indicates whether discount is currency (1) or percentage (0)
+    // We'll capture it if provided so downstream logic can act accordingly.
+    $discount_toggle_post = $this->request->getPost('discount_toggle');
+    if ($discount_toggle_post !== null && $discount_toggle_post !== '') {
+      // normalize to boolean/int as used elsewhere
+      $discount_toggle = ($discount_toggle_post == '1' || strtolower($discount_toggle_post) === 'true') ? 1 : 0;
+    }
     $mode = $this->sale_lib->get_mode();
     $quantity = ($mode == 'return') ? -$quantity : $quantity;
+
+    // If the frontend posted a total price (not a unit price), convert it
+    // to a unit price so downstream logic that multiplies unit * qty
+    // doesn't double-multiply. The frontend may also send single_unit_quantity
+    // and pack_name so we can correctly convert prices when the selected
+    // unit differs from the product's pack unit.
+    $posted_single_unit_quantity = $this->request->getPost('single_unit_quantity');
+    $posted_pack_name = $this->request->getPost('pack_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+
+    $unit_price = $price;
+    if ($posted_price !== null && $posted_price !== '') {
+      $abs_qty = $quantity != 0 ? abs($quantity) : 1;
+      $unit_price = $price / ($abs_qty ?: 1);
+
+      // If the frontend told us how many single-units are in the product's
+      // pack and the selected unit matches the pack_name, then the posted
+      // price was likely for the pack; convert to a per-single-unit price.
+      if ($posted_single_unit_quantity !== null && $posted_single_unit_quantity !== '' && is_numeric($posted_single_unit_quantity) && (float)$posted_single_unit_quantity > 0) {
+        if ($unit && $posted_pack_name && $unit == $posted_pack_name) {
+          $unit_price = $unit_price / (float)$posted_single_unit_quantity;
+        }
+      }
+    }
     $item_location = $this->sale_lib->get_sale_location();
 
     if ($mode == 'return' && $this->sale->is_valid_receipt($item_id_or_number_or_item_kit_or_receipt)) {
@@ -558,7 +911,7 @@ class Sales extends Secure_Controller
       $print_option = PRINT_ALL; // Always include in list of items on invoice //TODO: This variable is never used in the code
 
       if (!empty($kit_item_id)) {
-        if (!$this->sale_lib->add_item($kit_item_id, $item_location, $quantity, $discount, $discount_type, PRICE_MODE_KIT, $kit_price_option, $kit_print_option, $price)) {
+        if (!$this->sale_lib->add_item($kit_item_id, $item_location, $quantity, $discount, $discount_type, PRICE_MODE_KIT, $kit_price_option, $kit_print_option, $unit_price)) {
           $data['error'] = lang('Sales.unable_to_add_item');
         } else {
           $data['warning'] = $this->sale_lib->out_of_stock($item_kit_id, $item_location);
@@ -573,7 +926,7 @@ class Sales extends Secure_Controller
         $data['warning'] = $stock_warning;
       }
     } else {
-      if ($item_id_or_number_or_item_kit_or_receipt == '' || !$this->sale_lib->add_item($item_id_or_number_or_item_kit_or_receipt, $item_location, $quantity, $discount, $discount_type, PRICE_MODE_STANDARD, null, null, $price)) {
+      if ($item_id_or_number_or_item_kit_or_receipt == '' || !$this->sale_lib->add_item($item_id_or_number_or_item_kit_or_receipt, $item_location, $quantity, $discount, $discount_type, PRICE_MODE_STANDARD, null, null, $unit_price)) {
         $data['error'] = lang('Sales.unable_to_add_item');
       } else {
         $data['warning'] = $this->sale_lib->out_of_stock($item_id_or_number_or_item_kit_or_receipt, $item_location);
@@ -643,6 +996,51 @@ class Sales extends Secure_Controller
     $this->sale_lib->empty_payments();
 
     $this->_reload();    //TODO: Hungarian notation
+  }
+
+  /**
+   * Update an item in the sale via AJAX. Used by React frontend at /sales/updateItem
+   *
+   * @return void
+   * @noinspection PhpUnused
+   */
+  public function postUpdateItem(): void
+  {
+    $response = ['success' => false, 'message' => lang('Sales.error_editing_item')];
+
+    $rules = [
+      'line_id' => 'trim|required|numeric',
+      'price' => 'trim|required|decimal_locale',
+      'quantity' => 'trim|required|decimal_locale',
+      'discount' => 'trim|permit_empty|decimal_locale',
+      'discount_toggle' => 'trim|permit_empty|in_list[0,1]',
+    ];
+
+    if ($this->validate($rules)) {
+      $line_id = (int)$this->request->getPost('line_id');
+      $price = parse_decimals($this->request->getPost('price'));
+      $quantity = parse_decimals($this->request->getPost('quantity'));
+      $unit = $this->request->getPost('unit', FILTER_SANITIZE_FULL_SPECIAL_CHARS) ?: 'pcs';
+      $discount_toggle = (bool)$this->request->getPost('discount_toggle');
+      $discount_type = $discount_toggle ? '1' : '0';
+      $discount = $discount_toggle
+        ? parse_quantity($this->request->getPost('discount'))
+        : parse_decimals($this->request->getPost('discount'));
+
+      try {
+        // Edit the item - description and serialnumber are empty for React frontend
+        $this->sale_lib->edit_item($line_id, '', '', $quantity, $discount, $discount_type, $price, null);
+        $this->sale_lib->empty_payments();
+
+        $response['success'] = true;
+        $response['message'] = lang('Sales.item_updated_successfully');
+        $response['cart'] = $this->sale_lib->get_cart();
+      } catch (\Exception $e) {
+        $response['message'] = $e->getMessage();
+      }
+    }
+
+    echo json_encode($response);
   }
 
   /**
@@ -1385,6 +1783,19 @@ class Sales extends Secure_Controller
     } else {
       $data['mode_label'] = lang('Sales.receipt');
       $data['customer_required'] = lang('Sales.customer_optional');
+    }
+
+    // Expose the currently-selected vehicle id and vehicle_no to the view so
+    // the React frontend can pre-load the vehicle on refresh.
+    $selected_vehicle_id = $this->sale_lib->get_vehicle();
+    $data['selected_vehicle_id'] = $selected_vehicle_id;
+    $data['selected_vehicle_no'] = '';
+    if ($selected_vehicle_id && $selected_vehicle_id != NEW_ENTRY && $selected_vehicle_id != -1) {
+      $vehicleModel = model(Vehicle::class);
+      $vehicle = $vehicleModel->find($selected_vehicle_id);
+      if ($vehicle) {
+        $data['selected_vehicle_no'] = $vehicle->vehicle_no ?? '';
+      }
     }
 
     echo view("sales/register", $data);

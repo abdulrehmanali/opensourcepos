@@ -72,40 +72,13 @@
     <?= form_open("items/save/$item_info->item_id", ['id' => 'item_form', 'enctype' => 'multipart/form-data', 'class' => 'form-horizontal']) ?>
     <fieldset id="item_basic_info">
       <div class="form-group form-group-sm">
-        <?= form_label(lang('Items.item_number'), 'item_number', ['class' => 'control-label col-xs-3']) ?>
-        <div class='col-xs-8'>
-          <div class="input-group">
-            <span class="input-group-addon input-sm"><span class="glyphicon glyphicon-barcode"></span></span>
-            <?= form_input([
-              'name' => 'item_number',
-              'id' => 'item_number',
-              'class' => 'form-control input-sm',
-              'value' => $item_info->item_number
-            ]) ?>
-          </div>
-        </div>
-      </div>
-
-      <div class="form-group form-group-sm">
-        <?= form_label(lang('Items.name'), 'name', ['class' => 'required control-label col-xs-3']) ?>
-        <div class='col-xs-8'>
-          <?= form_input([
-            'name' => 'name',
-            'id' => 'name',
-            'class' => 'form-control input-sm',
-            'value' => $item_info->name
-          ]) ?>
-        </div>
-      </div>
-
-      <div class="form-group form-group-sm">
         <?= form_label(lang('Items.category'), 'category', ['class' => 'required control-label col-xs-3']) ?>
         <div class='col-xs-8'>
           <div class="input-group">
             <span class="input-group-addon input-sm"><span class="glyphicon glyphicon-tag"></span></span>
             <?php
             if ($config['category_dropdown']) {
-              echo form_dropdown('category[]', $categories, $selected_category, ['class' => 'form-control', 'name' => 'category[]', 'data-selected_category' => json_encode($selected_category)]);
+              echo form_dropdown('category[]', $categories, $selected_category, ['class' => 'form-control', 'name' => 'category[]', 'data-selected_category' => json_encode($selected_category), 'data-definition-label' => lang('Items.category')]);
             } else {
               echo form_input([
                 'name' => 'category',
@@ -116,6 +89,51 @@
             }
             ?>
           </div>
+        </div>
+      </div>
+      <div id="attributes">
+        <script type="application/javascript">
+          <?php $attr_load_id = isset($duplicate_from_id) ? $duplicate_from_id : $item_info->item_id; ?>
+          $('#attributes').load('<?= "items/attributes/" . $attr_load_id ?>');
+        </script>
+      </div>
+      <!-- Brand
+      Made
+      API Grade
+      Viscocity
+      Engine Oil
+      Made
+      OEM Part Number
+      Part Number
+      Reference Part Number
+      Whole Sale Price
+      Retail Price
+      Quantity Stock
+      Reciving Quantity Stock
+      Reorder Level
+      Single Unit -->
+      <div class="form-group form-group-sm">
+        <?= form_label('Single Unit Quantity (e.g. mL)', 'single_unit_quantity', ['class' => 'control-label col-xs-3']) ?>
+        <div class='col-xs-4'>
+          <?= form_input([
+            'name' => 'single_unit_quantity',
+            'id' => 'single_unit_quantity',
+            'class' => 'form-control input-sm',
+            'placeholder' => 'e.g. 250',
+            'value' => isset($item_info->single_unit_quantity) ? to_quantity_decimals($item_info->single_unit_quantity) : to_quantity_decimals(0)
+          ]) ?>
+          <small id="per_unit_price" class="form-text text-muted">
+            <?= !empty($price_per_unit) ? "Per $selected_unit price: $price_per_unit" : '' ?>
+          </small>
+        </div>
+        <div class='col-xs-4'>
+          <select name="pack_name" class="form-control input-sm" id="pack_name">
+            <?php foreach ($unit_options as $value => $label): ?>
+              <option value="<?= esc($value) ?>" <?= $value === $selected_unit ? 'selected' : '' ?>>
+                <?= esc($label) ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
         </div>
       </div>
       <div class="form-group form-group-sm">
@@ -204,35 +222,31 @@
         </div>
       </div>
       <div class="form-group form-group-sm">
-        <?= form_label('Single Unit Quantity (e.g. mL)', 'single_unit_quantity', ['class' => 'control-label col-xs-3']) ?>
-        <div class='col-xs-4'>
-          <?= form_input([
-            'name' => 'single_unit_quantity',
-            'id' => 'single_unit_quantity',
-            'class' => 'form-control input-sm',
-            'placeholder' => 'e.g. 250',
-            'value' => isset($item_info->single_unit_quantity) ? to_quantity_decimals($item_info->single_unit_quantity) : to_quantity_decimals(0)
-          ]) ?>
-          <small id="per_unit_price" class="form-text text-muted">
-            <?= !empty($price_per_unit) ? "Per $selected_unit price: $price_per_unit" : '' ?>
-          </small>
+        <?= form_label(lang('Items.item_number'), 'item_number', ['class' => 'control-label col-xs-3']) ?>
+        <div class='col-xs-8'>
+          <div class="input-group">
+            <span class="input-group-addon input-sm"><span class="glyphicon glyphicon-barcode"></span></span>
+            <?= form_input([
+              'name' => 'item_number',
+              'id' => 'item_number',
+              'class' => 'form-control input-sm',
+              'value' => $item_info->item_number
+            ]) ?>
+          </div>
         </div>
-        <div class='col-xs-4'>
-          <select name="pack_name" class="form-control input-sm" id="pack_name">
-            <?php foreach ($unit_options as $value => $label): ?>
-              <option value="<?= esc($value) ?>" <?= $value === $selected_unit ? 'selected' : '' ?>>
-                <?= esc($label) ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-      </div>
-      <div id="attributes">
-        <script type="application/javascript">
-          $('#attributes').load('<?= "items/attributes/$item_info->item_id" ?>');
-        </script>
       </div>
 
+      <div class="form-group form-group-sm">
+        <?= form_label(lang('Items.name'), 'name', ['class' => 'required control-label col-xs-3']) ?>
+        <div class='col-xs-8'>
+          <?= form_input([
+            'name' => 'name',
+            'id' => 'name',
+            'class' => 'form-control input-sm',
+            'value' => $item_info->name
+          ]) ?>
+        </div>
+      </div>
       <div class="form-group form-group-sm">
         <?= form_label(lang('Items.stock_type'), 'stock_type', !empty($basic_version) ? ['class' => 'required control-label col-xs-3'] : ['class' => 'control-label col-xs-3']) ?>
         <div class="col-xs-8">
@@ -599,7 +613,6 @@
 
 <script type="application/javascript">
   //validation and submit handling
-  $(document).ready(function() {
     // Define global submitItemForm to use ONLY ajaxSubmit, no fallback/default submission
     window.submitItemForm = function() {
       $('#item_form').ajaxSubmit({
@@ -617,7 +630,7 @@
           }
           alert(response.message);
           if (response.success) {
-            location.replace('/items');
+            location.replace('/public/items');
           }
         },
         dataType: 'json'
@@ -820,7 +833,7 @@
               }
               // table_support.handle_submit('<?= 'items' ?>', response, stay_open);
               // init_validation();
-              location.replace('/items')
+              location.replace('/public/items')
             },
             dataType: 'json'
           });
@@ -1059,34 +1072,142 @@
 
     // Load initial top 10 products when page loads
     loadInitialProducts();
-  });
 
-  document.addEventListener("DOMContentLoaded", function() {
-    const unitPriceInput = document.querySelector('input[name="unit_price"]');
-    const qtyPerPackInput = document.querySelector('input[name="qty_per_pack"]');
-    const unitSelect = document.querySelector('select[name="pack_name"]');
-    const helper = document.getElementById("per_unit_price");
+    // Auto-capitalize item name input (capitalize first letter of each word)
+    const nameInput = document.querySelector('input[name="name"]');
+    if (nameInput) {
+      const capitalizeWords = (str) => str.replace(/\b\w/g, function(ch) { return ch.toUpperCase(); });
 
-    if (!unitPriceInput || !qtyPerPackInput || !unitSelect || !helper) return;
+      nameInput.addEventListener('input', function(e) {
+        // preserve cursor position
+        const start = this.selectionStart;
+        const end = this.selectionEnd;
+        this.value = capitalizeWords(this.value);
+        try { this.setSelectionRange(start, end); } catch (err) { /* ignore */ }
+      });
 
-    function updateHelper() {
-      const price = parseFloat(unitPriceInput.value) || 0;
-      const qty = parseFloat(qtyPerPackInput.value) || 0;
-      const unit = unitSelect.value || 'unit';
-
-      if (qty > 0) {
-        const perUnit = (price / qty).toFixed(2);
-        helper.textContent = `Per ${unit} price: ${perUnit}`;
-      } else {
-        helper.textContent = '';
-      }
+      // Trim whitespace on blur
+      nameInput.addEventListener('blur', function() {
+        this.value = this.value.trim();
+      });
     }
 
-    unitPriceInput.addEventListener("input", updateHelper);
-    qtyPerPackInput.addEventListener("input", updateHelper);
-    unitSelect.addEventListener("change", updateHelper);
+    // Capitalize all text-like inputs and textareas (title-case) unless opted out with data-no-capitalize="true"
+    const capitalizeWords = (str) => str.replace(/\b\w/g, function(ch) { return ch.toUpperCase(); });
 
-    updateHelper();
-  });
+    function shouldCap(el) {
+      if (!el) return false;
+      if (el.dataset && el.dataset.noCapitalize === 'true') return false;
+      if (el.tagName.toLowerCase() === 'textarea') return true;
+      if (el.tagName.toLowerCase() === 'input') {
+        const t = (el.getAttribute('type') || 'text').toLowerCase();
+        return ['text', 'search', 'tel'].includes(t);
+      }
+      return false;
+    }
+
+    function attachCapitalizer(el) {
+      if (!shouldCap(el)) return;
+      el.addEventListener('input', function() {
+        const start = this.selectionStart;
+        const end = this.selectionEnd;
+        this.value = capitalizeWords(this.value);
+        try { this.setSelectionRange(start, end); } catch (e) { /* ignore */ }
+      });
+      el.addEventListener('blur', function() { this.value = this.value.trim(); });
+    }
+
+    // attach to existing inputs
+    document.querySelectorAll('input, textarea').forEach(attachCapitalizer);
+
+    // delegate for dynamically loaded attribute inputs inside #attributes
+    const attrs = document.getElementById('attributes');
+    if (attrs) {
+      // when attributes content is reloaded via AJAX we re-attach handlers
+      const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function() {
+          attrs.querySelectorAll('input, textarea, select').forEach(attachCapitalizer);
+        });
+      });
+      observer.observe(attrs, { childList: true, subtree: true });
+    }
+
+    // Autofill Item Name (Category - Brand - Made - Part Number) only when name is empty
+      function firstCategoryText() {
+        var sel = document.querySelector('select[name="category[]"]');
+        if (!sel) return '';
+        var selected = sel.querySelectorAll('option:checked');
+        if (selected && selected.length) return (selected[0].text || selected[0].value || '').trim();
+        var opt = sel.options[sel.selectedIndex];
+        return opt ? (opt.text || opt.value || '').trim() : '';
+      }
+
+      function attributeValueByLabelRegex(re) {
+        var els = document.querySelectorAll('[data-definition-label]');
+        for (var i = 0; i < els.length; i++) {
+          var lbl = (els[i].getAttribute('data-definition-label') || '').trim();
+          if (re.test(lbl)) {
+            var node = els[i];
+            if (node.tagName && node.tagName.toLowerCase() === 'select') {
+              var selOpt = node.querySelector('option:checked') || node.options[node.selectedIndex];
+              return selOpt ? (selOpt.text || selOpt.value || '').trim() : (node.value || '').trim();
+            }
+            return (node.value || '').trim();
+          }
+        }
+        return '';
+      }
+
+      function updateAutoNameIfEmpty() {
+        // if (nameInput.value && nameInput.value.trim() !== '') return;
+        var parts = [];
+        var cat = firstCategoryText(); if (cat) parts.push(cat);
+        var brand = attributeValueByLabelRegex(/brand/i); if (brand) parts.push(brand);
+        var eng_oil_des = attributeValueByLabelRegex(/engine\s*oil/i); if (eng_oil_des) parts.push(eng_oil_des);
+        var made = attributeValueByLabelRegex(/made/i); if (made) parts.push(made);
+        var partNum = attributeValueByLabelRegex(/part\s*number/i) || attributeValueByLabelRegex(/ref\s*part/i);
+        if (partNum) parts.push(partNum);
+        var newName = parts.filter(Boolean).join(' - ');
+        if (newName) nameInput.value = newName;
+      }
+
+      // initial
+      updateAutoNameIfEmpty();
+
+      if ($) {
+        $(document).on('change input', 'select[name="category[]"], [data-definition-label]', updateAutoNameIfEmpty);
+      } else {
+        var catEl = document.querySelector('select[name="category[]"]');
+        if (catEl) catEl.addEventListener('change', updateAutoNameIfEmpty);
+        var attrEls = document.querySelectorAll('[data-definition-label]');
+        attrEls.forEach(function(el) { el.addEventListener('change', updateAutoNameIfEmpty); el.addEventListener('input', updateAutoNameIfEmpty); });
+      }
+
+      // Per-unit helper: show per-unit price based on unit_price / qty_per_pack and selected pack_name
+      const unitPriceInput = document.querySelector('input[name="unit_price"]');
+      const qtyPerPackInput = document.querySelector('input[name="qty_per_pack"]');
+      const unitSelect = document.querySelector('select[name="pack_name"]');
+      const helper = document.getElementById("per_unit_price");
+
+      if (unitPriceInput && qtyPerPackInput && unitSelect && helper) {
+        function updateHelper() {
+          const price = parseFloat(unitPriceInput.value) || 0;
+          const qty = parseFloat(qtyPerPackInput.value) || 0;
+          const unit = unitSelect.value || 'unit';
+
+          if (qty > 0) {
+            const perUnit = (price / qty).toFixed(2);
+            helper.textContent = 'Per ' + unit + ' price: ' + perUnit;
+          } else {
+            helper.textContent = '';
+          }
+        }
+
+        unitPriceInput.addEventListener("input", updateHelper);
+        qtyPerPackInput.addEventListener("input", updateHelper);
+        unitSelect.addEventListener("change", updateHelper);
+
+        updateHelper();
+    }
 </script>
 <?= view('partial/footer') ?>

@@ -348,6 +348,8 @@ class Items extends Secure_Controller
 		);
 
 		if ($is_duplicate) {
+			// Preserve the original item id so the attributes loader can fetch existing values
+			$data['duplicate_from_id'] = $item_id;
 			$item_info->item_id = NEW_ENTRY;
 		}
 		$data['item_info'] = $item_info;

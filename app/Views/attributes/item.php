@@ -22,20 +22,87 @@
     top: 5px;
   }
 </style>
-<div class="form-group form-group-sm">
-  <?= form_label(lang('Attributes.definition_name'), 'definition_name_label', ['class' => 'control-label col-xs-3']) ?>
-  <div class='col-xs-8'>
-    <?= form_dropdown([
-      'name' => 'definition_name',
-      'options' => $definition_names,
-      'selected' => -1,
-      'class' => 'form-control',
-      'id' => 'definition_name'
-    ]) ?>
-  </div>
-</div>
 <?php
-foreach ($definition_values as $definition_id => $definition_value) {
+// Determine which definition_names are not yet present in $definition_values.
+$present_norm = [];
+foreach ($definition_values as $dv) {
+  if (!empty($dv['definition_name'])) {
+    $present_norm[strtolower(preg_replace('/\s+/', '', $dv['definition_name']))] = true;
+  }
+}
+
+$remaining_options = [];
+foreach ($definition_names as $k => $label) {
+  $norm = strtolower(preg_replace('/\s+/', '', (string)$label));
+  if (!isset($present_norm[$norm])) {
+    $remaining_options[$k] = $label;
+  }
+}
+
+// Only show the "add attribute" dropdown if there are attributes left to add.
+if (count($remaining_options) > 0):
+?>
+  <div class="form-group form-group-sm">
+    <?= form_label(lang('Attributes.definition_name'), 'definition_name_label', ['class' => 'control-label col-xs-3']) ?>
+    <div class='col-xs-8'>
+      <?= form_dropdown([
+        'name' => 'definition_name',
+        'options' => $remaining_options,
+        'selected' => -1,
+        'class' => 'form-control',
+        'id' => 'definition_name'
+      ]) ?>
+    </div>
+  </div>
+<?php endif; ?>
+<?php
+// Reorder attributes to preferred sequence where possible. Attributes
+// not listed below will be appended in their original order.
+$desired_order = [
+  'Brand',
+  'Engine Oil',
+  'API Grade',
+  'Made',
+  'Part Number',
+  'OEM Part Number',
+  'Reference Part Number',
+  'Viscosity / SAE',
+  'Whole Sale Price',
+  'Retail Price',
+  'Quantity Stock',
+  'Receiving Quantity Stock',
+  'Reorder Level',
+  'Single Unit'
+];
+
+// Normalizer: lowercase + remove spaces for loose matching
+$normalize = function($s) {
+  return strtolower(preg_replace('/\s+/', '', (string)$s));
+};
+
+$remaining = $definition_values;
+$ordered = [];
+
+foreach ($desired_order as $want) {
+  $want_n = $normalize($want);
+  foreach ($remaining as $k => $v) {
+    if (empty($v['definition_name'])) continue;
+    $have_n = $normalize($v['definition_name']);
+
+    // Exact or substring match (helps with small typos like 'Viscocity' vs 'Viscosity')
+    if ($have_n === $want_n || strpos($have_n, $want_n) !== false || strpos($want_n, $have_n) !== false) {
+      $ordered[$k] = $v;
+      unset($remaining[$k]);
+    }
+  }
+}
+
+// Append any leftover attributes preserving original order
+foreach ($remaining as $k => $v) {
+  $ordered[$k] = $v;
+}
+
+foreach ($ordered as $definition_id => $definition_value) {
   if (!$definition_value['definition_id']) {
     continue;
   }
@@ -55,17 +122,20 @@ foreach ($definition_values as $definition_id => $definition_value) {
               'value' => to_date($value),
               'class' => 'form-control input-sm datetime',
               'data-definition-id' => $definition_id,
+              'data-definition-label' => $definition_value['definition_name'],
               'readonly' => 'true'
             ]);
             break;
           case DROPDOWN:
             $selected_value = $definition_value['selected_value'];
+            $values = ['Select '.$definition_value['definition_name'], ...$definition_value['values']];
             echo form_dropdown([
               'name' => "attribute_links[$definition_id]",
-              'options' => $definition_value['values'],
+              'options' => $values,
               'selected' => $selected_value,
               'class' => 'form-control select-2-new-item-attributes',
-              'data-definition-id' => $definition_id
+              'data-definition-id' => $definition_id,
+              'data-definition-label' => $definition_value['definition_name']
             ]);
             break;
           case TEXT:
@@ -74,7 +144,8 @@ foreach ($definition_values as $definition_id => $definition_value) {
               'name' => "attribute_links[$definition_id]",
               'value' => $value,
               'class' => 'form-control valid_chars',
-              'data-definition-id' => $definition_id
+              'data-definition-id' => $definition_id,
+              'data-definition-label' => $definition_value['definition_name']
             ]);
             break;
           case DECIMAL:
@@ -83,7 +154,8 @@ foreach ($definition_values as $definition_id => $definition_value) {
               'name' => "attribute_links[$definition_id]",
               'value' => to_decimals((float)$value),
               'class' => 'form-control valid_chars',
-              'data-definition-id' => $definition_id
+              'data-definition-id' => $definition_id,
+              'data-definition-label' => $definition_value['definition_name']
             ]);
             break;
           case CHECKBOX:
@@ -95,7 +167,8 @@ foreach ($definition_values as $definition_id => $definition_value) {
               'name' => "attribute_links[$definition_id]",
               'id' => "attribute_links[$definition_id]",
               'value' => 0,
-              'data-definition-id' => $definition_id
+              'data-definition-id' => $definition_id,
+              'data-definition-label' => $definition_value['definition_name']
             ]);
             echo form_checkbox([
               'name' => "attribute_links[$definition_id]",
@@ -103,7 +176,8 @@ foreach ($definition_values as $definition_id => $definition_value) {
               'value' => 1,
               'checked' => $value == 1,
               'class' => 'checkbox-inline',
-              'data-definition-id' => $definition_id
+              'data-definition-id' => $definition_id,
+              'data-definition-label' => $definition_value['definition_name']
             ]);
             break;
         }
@@ -179,7 +253,7 @@ foreach ($definition_values as $definition_id => $definition_value) {
 
           return {
             id: term, // temporary id
-            text: term,
+            text: term.replace(/\b\w/g, (l) => l.toUpperCase()),
             newTag: true
           };
         },
@@ -188,18 +262,18 @@ foreach ($definition_values as $definition_id => $definition_value) {
         }
       }).on('select2:select', function(e) {
         const data = e.params.data;
-
-        if (data.id === data.text && data.newTag) {
+        const dataText = data.text.replace(/\b\w/g, (l) => l.toUpperCase())
+        if (data.id === dataText && data.newTag) {
           $.post('attributes/saveAttributeValue/', {
             definition_id: $select.data('definition-id'),
-            attribute_value: data.text
+            attribute_value: dataText
           }, function(response) {
             response = JSON.parse(response)
             // Assume response contains the real ID returned from the server
             const newId = response.id || response; // support both plain id or { id: x }
 
             // Replace the temporary tag with the one having the real ID
-            const newOption = new Option(data.text, newId, true, true);
+            const newOption = new Option(dataText, newId, true, true);
             $select.append(newOption).trigger('change');
             
 
@@ -207,7 +281,7 @@ foreach ($definition_values as $definition_id => $definition_value) {
             // console.log(data.text)
             // console.log($select.find('option[value="' + data.id + '"]'))
             // $select.find('option[value="' + data.id + '"]').remove();
-            $select.find('option[value="' + data.text + '"]').remove();
+            $select.find('option[value="' + dataText + '"]').remove();
           });
         }
       }).on('change', function(e) {

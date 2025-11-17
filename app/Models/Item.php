@@ -689,50 +689,224 @@ class Item extends Model
 	}
 
 	/**
+	 * Helper method to extract attribute value from JSON string
+	 * @param string $jsonAttributes JSON string from attributes column
+	 * @param string $attributeName Name of the attribute to find
+	 * @return string Attribute value or empty string if not found
+	 */
+	private function getAttrFromJson(?string $jsonAttributes, string $attributeName): string
+	{
+		if(empty($jsonAttributes)) {
+			return '';
+		}
+		
+		try {
+			$attrs = json_decode($jsonAttributes, true);
+			if(is_array($attrs)) {
+				foreach($attrs as $attr) {
+					if(isset($attr['name'], $attr['value']) && strcasecmp($attr['name'], $attributeName) === 0) {
+						return (string)$attr['value'];
+					}
+				}
+			}
+		} catch(\Exception $e) {
+			// Silent fail - return empty string
+		}
+		
+		return '';
+	}
+
+	/**
+	 * Helper method to parse multi-field search terms
+	 * Splits search by % and returns array of [field, term] pairs
+	 * Fields: Product (i.name), Category (ic.name), Brand, Part No, OEM No, Make
+	 * 
+	 * @param string $search Search term like "Test%Category%Brand%PartNo%OEM%Make"
+	 * @return array Array of terms for each searchable field
+	 */
+	private function parseMultiFieldSearch(string $search): array
+	{
+		$fields = ['product', 'category', 'brand', 'part_no', 'oem_no', 'make'];
+		$terms = explode('%', trim($search));
+		$result = [];
+		
+		foreach($fields as $index => $field) {
+			$result[$field] = isset($terms[$index]) ? trim($terms[$index]) : '';
+		}
+		
+		return $result;
+	}
+
+	/**
 	 * @param string $search
 	 * @param array $filters
 	 * @param bool $unique
 	 * @param int $limit
 	 * @return array
 	 */
-	public function get_search_suggestions(string $search, array $filters = ['is_deleted' => false, 'search_custom' => false], bool $unique = false, int $limit = 25): array
+	public function get_search_suggestions(string $search, array $filters = ['is_deleted' => 0, 'search_custom' => false], bool $unique = false, int $limit = 25): array
 	{
 		$suggestions = [];
 		$non_kit = [ITEM, ITEM_AMOUNT_ENTRY];
+		$deletedFlag = isset($filters['is_deleted']) ? (int)$filters['is_deleted'] : 0;
 
-		$builder = $this->db->table('items');
-		$builder->select($this->get_search_suggestion_format('item_id, name, pack_name, unit_price, single_unit_quantity'));
-		$builder->where('deleted', $filters['is_deleted']);
-		$builder->whereIn('item_type', $non_kit);
-		$builder->like('name', $search);
-		$builder->orderBy('name', 'asc');
+		// Check if multi-field search (contains %)
+		$hasMultiFieldSearch = strpos($search, '%') !== false;
+		$searchTerms = $hasMultiFieldSearch ? $this->parseMultiFieldSearch($search) : [];
+
+	  $builder = $this->db->table('items AS i');
+	  $builder->join('ospos_item_categories AS ic', 'ic.item_id = i.item_id', 'left');
+	  $builder->where('i.deleted', $deletedFlag);
+		$builder->whereIn('i.item_type', $non_kit);
+		
+		// Apply multi-field filters if applicable
+		if($hasMultiFieldSearch && !empty($searchTerms['product'])) {
+			$builder->like('i.name', $searchTerms['product']);
+		} elseif(!$hasMultiFieldSearch) {
+			$builder->like('i.name', $search);
+		}
+		
+		$builder->orderBy('i.name', 'asc');
+    $builder->select('i.item_id, i.name, i.item_number, MAX(ic.name) AS category, i.description, i.pack_name, i.unit_price, i.cost_price, i.single_unit_quantity', false);
+		$builder->select('(SELECT JSON_ARRAYAGG(JSON_OBJECT("name", def.definition_name, "value", val.attribute_value)) FROM ospos_attribute_links AS lnk LEFT JOIN ospos_attribute_values AS val ON val.attribute_id = lnk.attribute_id LEFT JOIN ospos_attribute_definitions AS def ON def.definition_id = lnk.definition_id WHERE lnk.item_id = i.item_id AND lnk.sale_id IS NULL AND lnk.receiving_id IS NULL) AS attributes', false);
+		$builder->groupBy('i.item_id');
 
 		foreach($builder->get()->getResult() as $row)
 		{
+			// For multi-field search, apply additional filters on returned data
+			if($hasMultiFieldSearch) {
+				$passesFilter = true;
+				
+				// Check category filter
+				if(!empty($searchTerms['category']) && stripos($row->category ?? '', $searchTerms['category']) === false) {
+					$passesFilter = false;
+				}
+				
+				// Check attribute filters (Brand, Part No, OEM No, Make)
+				if($passesFilter && !empty($searchTerms['brand'])) {
+					$brand = $this->getAttrFromJson($row->attributes, 'Brand');
+					if(stripos($brand, $searchTerms['brand']) === false) {
+						$passesFilter = false;
+					}
+				}
+				
+				if($passesFilter && !empty($searchTerms['part_no'])) {
+					$partNo = $this->getAttrFromJson($row->attributes, 'Part No');
+					if(stripos($partNo, $searchTerms['part_no']) === false) {
+						$passesFilter = false;
+					}
+				}
+				
+				if($passesFilter && !empty($searchTerms['oem_no'])) {
+					$oemNo = $this->getAttrFromJson($row->attributes, 'OEM No');
+					if(stripos($oemNo, $searchTerms['oem_no']) === false) {
+						$passesFilter = false;
+					}
+				}
+				
+				if($passesFilter && !empty($searchTerms['make'])) {
+					$make = $this->getAttrFromJson($row->attributes, 'Make');
+					if(stripos($make, $searchTerms['make']) === false) {
+						$passesFilter = false;
+					}
+				}
+				
+				if(!$passesFilter) {
+					continue;
+				}
+			}
+			
 			$suggestions[] = [
 				'value' => $row->item_id,
 				'label' => $this->get_search_suggestion_label($row),
 				'price' => $row->unit_price,
+				'cost_price' => $row->cost_price ?? 0,
 				'single_unit_quantity' => $row->single_unit_quantity,
-				'pack_name' => $row->pack_name
+				'pack_name' => $row->pack_name,
+				'category' => $row->category ?? '',
+				'description' => $row->description ?? '',
+				'item_number' => $row->item_number ?? '',
+				'barcode' => $row->item_number ?? '',
+				'code' => $row->item_number ?? '',
+				'attributes' => $row->attributes ?? '',
 			];
 		}
 
-		$builder = $this->db->table('items');
-		$builder->select($this->get_search_suggestion_format('item_id, item_number, pack_name, unit_price, single_unit_quantity'));
-		$builder->where('deleted', $filters['is_deleted']);
-		$builder->whereIn('item_type', $non_kit);
-		$builder->like('item_number', $search);
-		$builder->orderBy('item_number', 'asc');
+	$builder = $this->db->table('items AS i');
+	$builder->join('ospos_item_categories AS ic', 'ic.item_id = i.item_id', 'left');
+	$builder->select('i.item_id, i.name, i.item_number, MAX(ic.name) AS category, i.description, i.pack_name, i.unit_price, i.cost_price, i.single_unit_quantity', false);
+	$builder->select('(SELECT JSON_ARRAYAGG(JSON_OBJECT("name", def.definition_name, "value", val.attribute_value)) FROM ospos_attribute_links AS lnk LEFT JOIN ospos_attribute_values AS val ON val.attribute_id = lnk.attribute_id LEFT JOIN ospos_attribute_definitions AS def ON def.definition_id = lnk.definition_id WHERE lnk.item_id = i.item_id AND lnk.sale_id IS NULL AND lnk.receiving_id IS NULL) AS attributes', false);
+	$builder->where('i.deleted', $deletedFlag);
+		$builder->whereIn('i.item_type', $non_kit);
+		
+		// Apply multi-field filters for item_number search
+		if($hasMultiFieldSearch && !empty($searchTerms['product'])) {
+			$builder->like('i.item_number', $searchTerms['product']);
+		} elseif(!$hasMultiFieldSearch) {
+			$builder->like('i.item_number', $search);
+		}
+		
+		$builder->orderBy('i.item_number', 'asc');
+		$builder->groupBy('i.item_id');
 
 		foreach($builder->get()->getResult() as $row)
 		{
+			// For multi-field search, apply additional filters on returned data
+			if($hasMultiFieldSearch) {
+				$passesFilter = true;
+				
+				// Check category filter
+				if(!empty($searchTerms['category']) && stripos($row->category ?? '', $searchTerms['category']) === false) {
+					$passesFilter = false;
+				}
+				
+				// Check attribute filters (Brand, Part No, OEM No, Make)
+				if($passesFilter && !empty($searchTerms['brand'])) {
+					$brand = $this->getAttrFromJson($row->attributes, 'Brand');
+					if(stripos($brand, $searchTerms['brand']) === false) {
+						$passesFilter = false;
+					}
+				}
+				
+				if($passesFilter && !empty($searchTerms['part_no'])) {
+					$partNo = $this->getAttrFromJson($row->attributes, 'Part No');
+					if(stripos($partNo, $searchTerms['part_no']) === false) {
+						$passesFilter = false;
+					}
+				}
+				
+				if($passesFilter && !empty($searchTerms['oem_no'])) {
+					$oemNo = $this->getAttrFromJson($row->attributes, 'OEM No');
+					if(stripos($oemNo, $searchTerms['oem_no']) === false) {
+						$passesFilter = false;
+					}
+				}
+				
+				if($passesFilter && !empty($searchTerms['make'])) {
+					$make = $this->getAttrFromJson($row->attributes, 'Make');
+					if(stripos($make, $searchTerms['make']) === false) {
+						$passesFilter = false;
+					}
+				}
+				
+				if(!$passesFilter) {
+					continue;
+				}
+			}
+			
 			$suggestions[] = [
 				'value' => $row->item_id,
 				'label' => $this->get_search_suggestion_label($row),
 				'price' => $row->unit_price,
+				'cost_price' => $row->cost_price ?? 0,
 				'single_unit_quantity' => $row->single_unit_quantity,
-				'pack_name' => $row->pack_name
+				'pack_name' => $row->pack_name,
+				'category' => $row->category ?? '',
+				'description' => $row->description ?? '',
+				'item_number' => $row->item_number ?? '',
+				'barcode' => $row->item_number ?? '',
+				'code' => $row->item_number ?? '',
+				'attributes' => $row->attributes ?? ''
 			];
 		}
 
@@ -741,7 +915,7 @@ class Item extends Model
 			//Search by category
 			$builder = $this->db->table('items');
 			$builder->select('category');
-			$builder->where('deleted', $filters['is_deleted']);
+			$builder->where('deleted', $deletedFlag);
 			$builder->distinct();    //TODO: duplicate code.  Refactor method.
 			$builder->like('category', $search);
 			$builder->orderBy('category', 'asc');
@@ -758,7 +932,7 @@ class Item extends Model
 			$builder->like('company_name', $search);
 
 			// restrict to non deleted companies only if is_deleted is false
-			$builder->where('deleted', $filters['is_deleted']);
+			$builder->where('deleted', (int)$filters['is_deleted']);
 			$builder->distinct();
 			$builder->orderBy('company_name', 'asc');
 
@@ -770,7 +944,7 @@ class Item extends Model
 			//Search by description
 			$builder = $this->db->table('items');
 			$builder->select($this->get_search_suggestion_format('item_id, name, pack_name, description'));
-			$builder->where('deleted', $filters['is_deleted']);
+			$builder->where('deleted', $deletedFlag);
 			$builder->like('description', $search);    //TODO: duplicate code, refactor method.
 			$builder->orderBy('description', 'asc');
 
@@ -795,7 +969,7 @@ class Item extends Model
 				$builder->join('attribute_definitions', 'attribute_definitions.definition_id = attribute_links.definition_id');
 				$builder->like('attribute_value', $search);
 				$builder->where('definition_type', TEXT);
-				$builder->where('deleted', $filters['is_deleted']);
+				$builder->where('deleted', $deletedFlag);
 				$builder->whereIn('item_type', $non_kit); // standard, exclude kit items since kits will be picked up later
 
 				foreach($builder->get()->getResult() as $row)

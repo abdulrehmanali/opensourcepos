@@ -31,7 +31,10 @@ class Item_kit extends Model
      */
     public function exists(int $item_kit_id): bool
     {
-        $builder = $this->db->table('item_kits');
+    $builder = $this->db->table('item_kits');
+    // exclude kits whose linked base item is deleted
+    $builder->join('items', 'item_kits.item_id = items.item_id', 'left');
+    $builder->where('items.deleted', 0);
         $builder->where('item_kit_id', $item_kit_id);
 
         return ($builder->get()->getNumRows() == 1);    //TODO: ===

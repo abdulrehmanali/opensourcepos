@@ -155,4 +155,4 @@ $head_text = esc($config['company']);
         </div>
 			</div>
 		</div>
-		<div class="container-fluid">
+		<div class="container">
