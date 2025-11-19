@@ -9,12 +9,12 @@ const SalesRegister = ({
 	payment_options = {},
 	cart = [],
 	total = 0,
-
 	config = {},
 	selected_vehicle_id = null,
 	selected_vehicle_no = "",
 }) => {
 	const BASE_URL = "http://localhost:8888/opensourcepos/public";
+	console.log(customer_id);
 	// State management
 	const [vehicleNo, setVehicleNo] = useState(selected_vehicle_no || "");
 	const [customerName, setCustomerName] = useState("");
@@ -60,8 +60,7 @@ const SalesRegister = ({
 	const lastLoadedVehicleNo = useRef(null);
 	// selected_vehicle_id is available via props and used below if needed
 
-
-  console.log(vehicleNo)
+	console.log(vehicleNo);
 	// Utility Functions
 	const typewatch = useCallback((callback, ms, key = "default") => {
 		if (typeWatchTimeouts.current[key]) {
@@ -139,8 +138,8 @@ const SalesRegister = ({
 
 	const loadVehicleData = useCallback(
 		(vehicle_no) => {
-      console.log(vehicle_no)
-      console.log(lastLoadedVehicleNo.current)
+			console.log(vehicle_no);
+			console.log(lastLoadedVehicleNo.current);
 
 			// Skip if this vehicle is already loaded
 			if (lastLoadedVehicleNo.current === vehicle_no) {
@@ -169,14 +168,14 @@ const SalesRegister = ({
 							console.log("Vehicle Data:", vehicle);
 							// Track this vehicle as loaded
 							lastLoadedVehicleNo.current = vehicle.vehicle_no;
-							
+
 							setVehicleKilometer(vehicle.kilometer || "");
 							setVehicleAvgOilKm(vehicle.last_avg_oil_km || "");
 							setVehicleAvgKmDay(vehicle.last_avg_km_day || "");
 							setVehicleNextVisit(vehicle.last_next_visit || "");
 
 							// Only set customer if no customer is currently selected (only set on first load)
-							if (vehicle.last_customer_id && (currentCustomerId === -1 || currentCustomerId === null)) {
+							if (vehicle.last_customer_id && (currentCustomerId == -1 || currentCustomerId == null)) {
 								setCurrentCustomerId(vehicle.last_customer_id);
 							}
 
@@ -213,45 +212,40 @@ const SalesRegister = ({
 		]
 	);
 
-  useEffect(()=>{
-    if (!phoneNumber) return
-    typewatch(
-      async () => {
-        try {
-          const response = await axios.get(BASE_URL + "/customers/byPhoneNumberOrCreateCustomer", {
-            params: { phone_number: phoneNumber, customer_name: customerName },
-          });
+	useEffect(() => {
+		if (!phoneNumber) return;
+		typewatch(
+			async () => {
+				try {
+					const response = await axios.get(BASE_URL + "/customers/byPhoneNumberOrCreateCustomer", {
+						params: { phone_number: phoneNumber, customer_name: customerName },
+					});
 
-          if (response.data.success && response.data.customer) {
-            const customer = response.data.customer;
+					if (response.data.success && response.data.customer) {
+						const customer = response.data.customer;
 
-            // Select customer
-            await axios.post(BASE_URL + "/sales/selectCustomer", {
-              customer: customer.person_id,
-            });
+						showNotification(
+							response.data.created
+								? `New customer created and selected: ${customer.full_name}`
+								: `Customer found and selected: ${customer.full_name}`,
+							"success"
+						);
 
-            showNotification(
-              response.data.created
-                ? `New customer created and selected: ${customer.full_name}`
-                : `Customer found and selected: ${customer.full_name}`,
-              "success"
-            );
-
-            // Update state - useEffect will handle loading sales history and refreshing cart
-          if (customer.person_id != currentCustomerId) {
-            setCurrentCustomerId(customer.person_id);
-          }
-          } else {
-            showNotification(response.data.message || "Error processing customer", "danger");
-          }
-        } catch (error) {
-          showNotification("Error searching for customer", "danger");
-        }
-      },
-      200,
-      "loadCustomer"
-    );
-  }, [phoneNumber, customerName, showNotification, typewatch])
+						// Update state - useEffect will handle loading sales history and refreshing cart
+						if (customer.person_id != currentCustomerId) {
+							setCurrentCustomerId(customer.person_id);
+						}
+					} else {
+						showNotification(response.data.message || "Error processing customer", "danger");
+					}
+				} catch (error) {
+					showNotification("Error searching for customer", "danger");
+				}
+			},
+			200,
+			"loadCustomer"
+		);
+	}, [phoneNumber, customerName, showNotification, typewatch]);
 
 	const loadCustomerSalesHistory = useCallback(
 		async (customer_id) => {
@@ -280,14 +274,21 @@ const SalesRegister = ({
 
 	const refreshCartData = useCallback(async () => {
 		try {
-			const response = await axios.get(`${BASE_URL}/${controller_name}/cart`);
+			// Get sale_id from URL params to load cart for specific sale
+			const urlParams = new URLSearchParams(window.location.search);
+			const saleId = urlParams.get("sale_id");
+
+			const response = await axios.get(`${BASE_URL}/${controller_name}/cart`, {
+				params: { sale_id: saleId },
+			});
 			if (response.data && response.data.cart) {
+				console.log("Loaded cart data:", response.data.cart);
 				setCartItems(response.data.cart);
 			}
-		} catch (error) {
-			console.error("Error refreshing cart data:", error);
+		} catch (err) {
+			console.error("Error refreshing cart data:", err);
 		}
-	}, [controller_name]);
+	}, [controller_name, BASE_URL]);
 
 	const refreshCustomerData = useCallback(async () => {
 		try {
@@ -451,7 +452,7 @@ const SalesRegister = ({
 			const data = e.params && e.params.data;
 			const id = data && (data.id ?? data.text);
 			const text = data && (data.text ?? data.id ?? data.text);
-      console.log("Select2 Vehicle Selected:", data)
+			console.log("Select2 Vehicle Selected:", data);
 			if (id) {
 				try {
 					// Ensure the select contains an option for the selected value so Select2 displays it
@@ -744,12 +745,9 @@ const SalesRegister = ({
 		}
 	}, [phoneNumber]);
 
-	const handlePhoneNumberChange = useCallback(
-		(value) => {
-			setPhoneNumber(value);
-		},
-		[]
-	);
+	const handlePhoneNumberChange = useCallback((value) => {
+		setPhoneNumber(value);
+	}, []);
 
 	// Edit item handlers - must be defined before handleAddItem since handleAddItem depends on them
 	const cancelEditItem = useCallback(() => {
@@ -790,7 +788,19 @@ const SalesRegister = ({
 				showNotification("Error updating item", "danger");
 			}
 		},
-		[currentEditingItem, quantity, unit, price, discount, discountToggle, controller_name, refreshCartData, showNotification, cancelEditItem, BASE_URL]
+		[
+			currentEditingItem,
+			quantity,
+			unit,
+			price,
+			discount,
+			discountToggle,
+			controller_name,
+			refreshCartData,
+			showNotification,
+			cancelEditItem,
+			BASE_URL,
+		]
 	);
 
 	const handleAddItem = useCallback(
@@ -805,6 +815,7 @@ const SalesRegister = ({
 
 			// Send as application/x-www-form-urlencoded so CodeIgniter request->getPost() can read values
 			const params = new URLSearchParams();
+			params.append("sale_id", new URLSearchParams(window.location.search).get("sale_id") || "");
 			params.append("item", itemId || itemSearch);
 			params.append("quantity", quantity);
 			params.append("unit", unit);
@@ -879,10 +890,23 @@ const SalesRegister = ({
 	const submitCompleteForm = useCallback(() => {
 		// Create and submit a POST form to mirror the original register_bak behavior
 		try {
+			const urlParams = new URLSearchParams(window.location.search);
+			const saleId = urlParams.get("sale_id");
+
 			const form = document.createElement("form");
 			form.method = "POST";
 			// Use an absolute path so browser submits to the same host/port
 			form.action = BASE_URL + `/${controller_name}/complete`;
+
+			// Add sale_id as hidden input if available
+			if (saleId) {
+				const saleIdInput = document.createElement("input");
+				saleIdInput.type = "hidden";
+				saleIdInput.name = "sale_id";
+				saleIdInput.value = saleId;
+				form.appendChild(saleIdInput);
+			}
+
 			form.style.display = "none";
 			document.body.appendChild(form);
 			form.submit();
@@ -937,9 +961,7 @@ const SalesRegister = ({
 
 				// Auto-calculate cash payment if this is not the cash field
 				// Assume "cash" is the key for cash payment. If not found, skip auto-calculation.
-				const cashKey = Object.keys(payment_options || {}).find(
-					(k) => k.toLowerCase() === "cash"
-				);
+				const cashKey = Object.keys(payment_options || {}).find((k) => k.toLowerCase() === "cash");
 
 				if (cashKey && key !== cashKey) {
 					// Calculate total from other payment methods (excluding cash)
@@ -975,44 +997,11 @@ const SalesRegister = ({
 		return Object.values(paymentInputs).reduce((acc, v) => acc + (parseFloat(String(v).replace(",", ".")) || 0), 0);
 	}, [paymentInputs]);
 
-	const applyPayments = useCallback(async (inputsToApply = paymentInputs) => {
-		// POST each non-zero payment to /addPayment as form-encoded data
-		const entries = Object.entries(inputsToApply).filter(
-			([, v]) => (parseFloat(String(v).replace(",", ".")) || 0) > 0
-		);
-		if (entries.length === 0) {
-			return;
-		}
-
-		try {
-			for (const [key, rawVal] of entries) {
-				const amount = parseFloat(String(rawVal).replace(",", ".")) || 0;
-				const params = new URLSearchParams();
-				params.append("payment_type", key);
-				params.append("amount_tendered", String(amount));
-
-				await axios.post(`${BASE_URL}/${controller_name}/addPayment`, params.toString(), {
-					headers: { "Content-Type": "application/x-www-form-urlencoded" },
-				});
-			}
-
-			// Refresh cart after applying
-			await refreshCartData();
-			// Clear inputs after successful application
-			setPaymentInputs((prev) => Object.keys(prev).reduce((acc, k) => ({ ...acc, [k]: "" }), {}));
-		} catch (err) {
-			console.error("Error applying payments:", err);
-			// Don't show error notification on auto-apply to avoid spamming user
-		}
-	}, [BASE_URL, controller_name, refreshCartData, paymentInputs]);
-
 	// Auto-load cash total on page load and when sale total changes
 	useEffect(() => {
 		setPaymentInputs((prev) => {
 			const updated = { ...prev };
-			const cashKey = Object.keys(payment_options || {}).find(
-				(k) => k.toLowerCase() === "cash"
-			);
+			const cashKey = Object.keys(payment_options || {}).find((k) => k.toLowerCase() === "cash");
 
 			if (cashKey) {
 				// Calculate total from other payment methods (excluding cash)
@@ -1032,48 +1021,40 @@ const SalesRegister = ({
 		});
 	}, [calculateSaleTotal, payment_options]);
 
-	// Auto-apply payments when payment inputs change (debounced)
-	useEffect(() => {
-		const timer = setTimeout(() => {
-			// Check if any non-cash payment has been entered
-			const hasPayment = Object.entries(paymentInputs).some(([key, value]) => {
-				const isCash = key.toLowerCase() === "cash";
-				return !isCash && (parseFloat(String(value).replace(",", ".")) || 0) > 0;
-			});
-
-			if (hasPayment) {
-				applyPayments(paymentInputs);
-			}
-		}, 500); // Debounce by 500ms to avoid too frequent API calls
-
-		return () => clearTimeout(timer);
-	}, [paymentInputs, applyPayments]);
-
 	// Effects
 	useEffect(() => {
 		calculateAveragePerDay();
 	}, [calculateAveragePerDay]);
 
 	useEffect(() => {
-  console.log("Loading customer by ID:", currentCustomerId);
-   axios.get(BASE_URL + "/customers/customerById", {
-    params: { customer_id:currentCustomerId },
-  }).then(async (response) => {
-    console.log("Customer by ID response:", response.data);
-    if (response.data.success && response.data.customer) {
-      const customer = response.data.customer;
+		console.log("Loading customer by ID:", currentCustomerId);
 
-      await axios.post(BASE_URL + "/sales/selectCustomer", {
-        customer: currentCustomerId,
-      });
+		// Skip if we're loading an existing sale from URL
+		// const urlParams = new URLSearchParams(window.location.search);
+		// const urlSaleId = urlParams.get("sale_id");
+		// if (urlSaleId) {
+		// 	console.log("Skipping customer refresh - loading existing sale from URL");
+		// 	return;
+		// }
 
-      setCustomerName(`${customer.first_name} ${customer.last_name}`);
-      setPhoneNumber(customer.phone_number || "");
+		if (!currentCustomerId) return;
 
-      loadCustomerSalesHistory(currentCustomerId);
-      refreshCartData()
-    }
-  })
+		axios
+			.get(BASE_URL + "/customers/customerById", {
+				params: { customer_id: currentCustomerId },
+			})
+			.then(async (response) => {
+				console.log("Customer by ID response:", response.data);
+				if (response.data.success && response.data.customer) {
+					const customer = response.data.customer;
+
+					setCustomerName(`${customer.first_name} ${customer.last_name}`);
+					setPhoneNumber(customer.phone_number || "");
+
+					loadCustomerSalesHistory(currentCustomerId);
+					refreshCartData();
+				}
+			});
 	}, [currentCustomerId, loadCustomerSalesHistory, refreshCartData]);
 
 	// No automatic focus: avoid stealing focus from the user.
@@ -1085,38 +1066,112 @@ const SalesRegister = ({
 
 			// Initialize sale first - get sale_id from URL params
 			const urlParams = new URLSearchParams(window.location.search);
-			const urlSaleId = urlParams.get('sale_id');
-			
-			axios.get(`${BASE_URL}/${controller_name}/initSale`, {
-				params: { sale_id: urlSaleId }
-			}).then(response => {
-				if(response.data.success) {
-					// Update URL with the sale_id (either existing or newly created)
-					const newUrl = new URL(window.location);
-					newUrl.searchParams.set('sale_id', response.data.sale_id);
-					window.history.replaceState({}, '', newUrl);
-					
-					// Load mechanic name from sale record
-					if(response.data.sale && response.data.sale.mechanic_name) {
-						setMechanicName(response.data.sale.mechanic_name || '');
-					}
-					
-					// Load vehicle data if returned in response
-					if(response.data.vehicle) {
-						const v = response.data.vehicle;
-						setVehicleNo(v.vehicle_no || '');
-						setVehicleKilometer(v.kilometer || 0);
-						setVehicleAvgOilKm(v.last_avg_oil_km || 0);
-						setVehicleAvgKmDay(v.last_avg_km_day || 0);
-						setVehicleNextVisit(v.last_next_visit || '');
-						if(lastLoadedVehicleNo) {
-							lastLoadedVehicleNo.current = v.vehicle_no;
+			const urlSaleId = urlParams.get("sale_id");
+
+			axios
+				.get(`${BASE_URL}/${controller_name}/initSale`, {
+					params: { sale_id: urlSaleId },
+				})
+				.then((response) => {
+					console.log("initSale response:", response.data);
+					if (response.data.success) {
+						// Update URL with the sale_id (either existing or newly created)
+						const newUrl = new URL(window.location);
+						newUrl.searchParams.set("sale_id", response.data.sale_id);
+						window.history.replaceState({}, "", newUrl);
+
+						// Load sale data
+						if (response.data.sale) {
+							const s = response.data.sale;
+							console.log("Loading sale data:", s);
+
+							// Load mechanic name and comment from sale record
+							setMechanicName(s.mechanic_name || "");
+							setComment(s.comment || "");
+
+							// Load customer if assigned
+							if (s.customer_id && s.customer_id !== -1) {
+								console.log("Setting customer ID:", s.customer_id);
+								setCurrentCustomerId(s.customer_id);
+
+								// Get customer name from multiple possible sources
+								if (s.customer_name) {
+									console.log("Setting customer name from sale:", s.customer_name);
+									setCustomerName(s.customer_name);
+								}
+
+								// Get phone number from sale object or fallback to nested customer object
+								if (s.phone_number) {
+									console.log("Setting phone from sale:", s.phone_number);
+									setPhoneNumber(s.phone_number);
+								} else if (response.data.customer && response.data.customer.phone_number) {
+									console.log(
+										"Setting phone from customer object:",
+										response.data.customer.phone_number
+									);
+									setPhoneNumber(response.data.customer.phone_number);
+								}
+							}
+
+							// Load vehicle data from sale object if vehicle_id is assigned
+							if (s.vehicle_id && s.vehicle_id !== -1) {
+								console.log("Loading vehicle data from sale object:", {
+									vehicle_id: s.vehicle_id,
+									vehicle_kilometer: s.vehicle_kilometer,
+									vehicle_avg_oil_km: s.vehicle_avg_oil_km,
+									vehicle_avg_km_day: s.vehicle_avg_km_day,
+								});
+								setVehicleKilometer(s.vehicle_kilometer || 0);
+								setVehicleAvgOilKm(s.vehicle_avg_oil_km || 0);
+								setVehicleAvgKmDay(s.vehicle_avg_km_day || 0);
+							}
+						}
+
+						// Also load vehicle data if returned in response for vehicle_no and last_next_visit
+						if (
+							response.data.vehicle &&
+							typeof response.data.vehicle === "object" &&
+							Object.keys(response.data.vehicle).length > 0
+						) {
+							console.log("Loading vehicle details:", response.data.vehicle);
+							const v = response.data.vehicle;
+							setVehicleNo(v.vehicle_no || "");
+							setVehicleNextVisit(v.last_next_visit || "");
+							if (lastLoadedVehicleNo) {
+								lastLoadedVehicleNo.current = v.vehicle_no;
+							}
+						}
+
+						// Load cart items if returned in response
+						if (
+							response.data.cart_items &&
+							Array.isArray(response.data.cart_items) &&
+							response.data.cart_items.length > 0
+						) {
+							console.log("Loading cart items:", response.data.cart_items);
+							setCartItems(response.data.cart_items);
+						}
+
+						// Load payment methods/amounts if returned in response
+						if (
+							response.data.payments &&
+							Array.isArray(response.data.payments) &&
+							response.data.payments.length > 0
+						) {
+							console.log("Loading payments:", response.data.payments);
+							const paymentsMap = {};
+							response.data.payments.forEach((payment) => {
+								// Map payment_type to payment_amount
+								paymentsMap[payment.payment_type] = payment.payment_amount;
+							});
+							console.log("Payments map:", paymentsMap);
+							setPaymentInputs(paymentsMap);
 						}
 					}
-				}
-			}).catch(err => {
-				console.error("Error initializing sale:", err);
-			});
+				})
+				.catch((err) => {
+					console.error("Error initializing sale:", err);
+				});
 		}
 	}, [controller_name, BASE_URL]);
 
@@ -1125,62 +1180,66 @@ const SalesRegister = ({
 	// but should not re-focus the item input when those change.
 	useEffect(() => {
 		if (initialCustomerLoaded.current) {
-			// If server provided a selected vehicle (via window.salesRegisterProps),
-			// prefer loading that vehicle first so the UI reflects the selected sale vehicle.
-			if (selected_vehicle_no) {
-				// Best-effort: initialize vehicleNo from server-provided selected vehicle
-				setVehicleNo(selected_vehicle_no);
-				// load vehicle info by its number to populate vehicle fields
-				try {
-					loadVehicleData(selected_vehicle_no);
-				} catch {
-					// ignore load errors here - vehicle loading is best-effort
+			// Check if we have a sale_id in URL - if so, skip this effect
+			// because the initSale effect already loaded all the data
+			const urlParams = new URLSearchParams(window.location.search);
+			const urlSaleId = urlParams.get("sale_id");
+
+			// Only load defaults if we don't have a URL sale_id
+			if (!urlSaleId) {
+				// If server provided a selected vehicle (via window.salesRegisterProps),
+				// prefer loading that vehicle first so the UI reflects the selected sale vehicle.
+				if (selected_vehicle_no) {
+					// Best-effort: initialize vehicleNo from server-provided selected vehicle
+					setVehicleNo(selected_vehicle_no);
+					// load vehicle info by its number to populate vehicle fields
+					try {
+						loadVehicleData(selected_vehicle_no);
+					} catch {
+						// ignore load errors here - vehicle loading is best-effort
+					}
+				}
+
+				if (customer_id) {
+					setCurrentCustomerId(customer_id);
+				} else {
+					refreshCustomerData();
 				}
 			}
-
-			if (customer_id) {
-				setCurrentCustomerId(customer_id);
-			} else {
-				refreshCustomerData();
-			}
 		}
-	}, [
-		refreshCustomerData,
-		loadVehicleData,
-		selected_vehicle_no,
-		selected_vehicle_id,
-		customer_id
-	]);
+	}, [refreshCustomerData, loadVehicleData, selected_vehicle_no, selected_vehicle_id, customer_id]);
 
 	// Auto-save customer ID to database when it changes
 	useEffect(() => {
-		if(!currentCustomerId || currentCustomerId === -1) return;
-		
+		if (!currentCustomerId || currentCustomerId === -1) return;
+
 		const urlParams = new URLSearchParams(window.location.search);
-		const saleId = urlParams.get('sale_id');
-		if(!saleId) return;
-		
+		const saleId = urlParams.get("sale_id");
+		if (!saleId) return;
+
 		const timer = setTimeout(() => {
 			const params = new URLSearchParams();
 			params.append("sale_id", saleId);
 			params.append("customer_id", currentCustomerId);
-			
-			axios.post(`${BASE_URL}/${controller_name}/saveSaleData`, params.toString(), {
-				headers: { "Content-Type": "application/x-www-form-urlencoded" }
-			}).catch(err => console.error("Error saving sale data:", err));
+
+			axios
+				.post(`${BASE_URL}/${controller_name}/saveSaleData`, params.toString(), {
+					headers: { "Content-Type": "application/x-www-form-urlencoded" },
+				})
+				.catch((err) => console.error("Error saving sale data:", err));
 		}, 1000); // Debounce by 1 second
-		
+
 		return () => clearTimeout(timer);
 	}, [currentCustomerId, controller_name, BASE_URL]);
 
 	// Auto-save vehicle data and comments to database when vehicle info changes
 	useEffect(() => {
-		if(!vehicleNo) return;
-		
+		if (!vehicleNo) return;
+
 		const urlParams = new URLSearchParams(window.location.search);
-		const saleId = urlParams.get('sale_id');
-		if(!saleId) return;
-		
+		const saleId = urlParams.get("sale_id");
+		if (!saleId) return;
+
 		const timer = setTimeout(() => {
 			const params = new URLSearchParams();
 			params.append("sale_id", saleId);
@@ -1188,49 +1247,64 @@ const SalesRegister = ({
 			params.append("vehicle_kilometer", vehicleKilometer || 0);
 			params.append("vehicle_avg_oil_km", vehicleAvgOilKm || 0);
 			params.append("vehicle_avg_km_day", vehicleAvgKmDay || 0);
-			params.append("vehicle_next_visit", vehicleNextVisit || '');
-			params.append("mechanic_name", mechanicName || '');
-			params.append("comment", comment || '');
+			params.append("vehicle_next_visit", vehicleNextVisit || "");
+			params.append("mechanic_name", mechanicName || "");
+			params.append("comment", comment || "");
 			params.append("customer_id", currentCustomerId || -1);
-			
-			axios.post(`${BASE_URL}/${controller_name}/saveSaleData`, params.toString(), {
-				headers: { "Content-Type": "application/x-www-form-urlencoded" }
-			}).catch(err => console.error("Error saving vehicle data:", err));
+
+			axios
+				.post(`${BASE_URL}/${controller_name}/saveSaleData`, params.toString(), {
+					headers: { "Content-Type": "application/x-www-form-urlencoded" },
+				})
+				.catch((err) => console.error("Error saving vehicle data:", err));
 		}, 1000); // Debounce by 1 second
-		
+
 		return () => clearTimeout(timer);
-	}, [vehicleNo, vehicleKilometer, vehicleAvgOilKm, vehicleAvgKmDay, vehicleNextVisit, mechanicName, comment, currentCustomerId, controller_name, BASE_URL]);
+	}, [
+		vehicleNo,
+		vehicleKilometer,
+		vehicleAvgOilKm,
+		vehicleAvgKmDay,
+		vehicleNextVisit,
+		mechanicName,
+		comment,
+		currentCustomerId,
+		controller_name,
+		BASE_URL,
+	]);
 
 	// Auto-save payment data to database when payment inputs change
 	useEffect(() => {
 		const urlParams = new URLSearchParams(window.location.search);
-		const saleId = urlParams.get('sale_id');
-		if(!saleId) return;
-		
+		const saleId = urlParams.get("sale_id");
+		if (!saleId) return;
+
 		// Check if any payment has been entered
 		const hasPayment = Object.entries(paymentInputs).some(([, value]) => {
 			return (parseFloat(String(value).replace(",", ".")) || 0) > 0;
 		});
-		
-		if(!hasPayment) return;
-		
+
+		if (!hasPayment) return;
+
 		const timer = setTimeout(() => {
 			// Save each payment to the backend
 			Object.entries(paymentInputs).forEach(([paymentType, amount]) => {
 				const parsedAmount = parseFloat(String(amount).replace(",", ".")) || 0;
-				if(parsedAmount > 0) {
+				if (parsedAmount > 0) {
 					const params = new URLSearchParams();
 					params.append("sale_id", saleId);
 					params.append("payment_type", paymentType);
 					params.append("payment_amount", parsedAmount);
-					
-					axios.post(`${BASE_URL}/${controller_name}/saveSaleData`, params.toString(), {
-						headers: { "Content-Type": "application/x-www-form-urlencoded" }
-					}).catch(err => console.error("Error saving payment data:", err));
+
+					axios
+						.post(`${BASE_URL}/${controller_name}/saveSaleData`, params.toString(), {
+							headers: { "Content-Type": "application/x-www-form-urlencoded" },
+						})
+						.catch((err) => console.error("Error saving payment data:", err));
 				}
 			});
 		}, 1000); // Debounce by 1 second
-		
+
 		return () => clearTimeout(timer);
 	}, [paymentInputs, controller_name, BASE_URL]);
 
@@ -1379,11 +1453,10 @@ const SalesRegister = ({
 			<div className="row">
 				<div id="register_wrapper" className="col-sm-7">
 					{/* Mode selection form would go here */}
-
 					{/* Customer and Vehicle Info */}
 					<div className="panel-body">
 						<div className="row">
-              <div className="col-sm-3">
+							<div className="col-sm-3">
 								<div className="form-group form-group-sm">
 									<label className="required control-label" style={{ width: "100%" }}>
 										Vehicle No
@@ -1402,9 +1475,9 @@ const SalesRegister = ({
 										{vehicleNo && <option value={vehicleNo}>{vehicleNo}</option>}
 									</select>
 								</div>
-              </div>
-              <div className="col-sm-3">
-                <div className="form-group form-group-sm">
+							</div>
+							<div className="col-sm-3">
+								<div className="form-group form-group-sm">
 									<label className="required control-label" style={{ width: "100%" }}>
 										Customer Name
 									</label>
@@ -1422,9 +1495,9 @@ const SalesRegister = ({
 										{customerName && <option value={customerName}>{customerName}</option>}
 									</select>
 								</div>
-              </div>
-              <div className="col-sm-3">
-                <div className="form-group form-group-sm">
+							</div>
+							<div className="col-sm-3">
+								<div className="form-group form-group-sm">
 									<label className="required control-label" style={{ width: "100%" }}>
 										Phone Number
 									</label>
@@ -1442,7 +1515,7 @@ const SalesRegister = ({
 										{phoneNumber && <option value={phoneNumber}>{phoneNumber}</option>}
 									</select>
 								</div>
-              </div>
+							</div>
 							<div className="col-sm-3">
 								<div className="form-group form-group-sm">
 									<label className="control-label" style={{ width: "100%" }}>
@@ -1457,8 +1530,8 @@ const SalesRegister = ({
 									/>
 								</div>
 							</div>
-              <div className="col-sm-3">
-                <div className="form-group form-group-sm">
+							<div className="col-sm-3">
+								<div className="form-group form-group-sm">
 									<label className="control-label" style={{ width: "100%" }}>
 										Avg KM / Day
 									</label>
@@ -1470,8 +1543,8 @@ const SalesRegister = ({
 										tabIndex="6"
 									/>
 								</div>
-              </div>
-              <div className="col-sm-3">
+							</div>
+							<div className="col-sm-3">
 								<div className="form-group form-group-sm">
 									<label className="control-label" style={{ width: "100%" }}>
 										Avg KM/ Oil
@@ -1483,15 +1556,15 @@ const SalesRegister = ({
 										onChange={(e) => setVehicleAvgOilKm(e.target.value)}
 										tabIndex="6"
 									/>
-                  {calculatedAvgPerDay && (
-                    <div style={{ color: "#2F4F4F", fontSize: "12px", marginTop: "5px" }}>
-                      {calculatedAvgPerDay}
-                    </div>
-								  )}
+									{calculatedAvgPerDay && (
+										<div style={{ color: "#2F4F4F", fontSize: "12px", marginTop: "5px" }}>
+											{calculatedAvgPerDay}
+										</div>
+									)}
 								</div>
 							</div>
-              <div className="col-sm-3">
-                <div className="form-group form-group-sm">
+							<div className="col-sm-3">
+								<div className="form-group form-group-sm">
 									<label className="control-label" style={{ width: "100%" }}>
 										Next Visit
 									</label>
@@ -1508,9 +1581,9 @@ const SalesRegister = ({
 										tabIndex="7"
 									/>
 								</div>
-              </div>
-              <div className="col-sm-3">
-                <div className="form-group form-group-sm">
+							</div>
+							<div className="col-sm-3">
+								<div className="form-group form-group-sm">
 									<label className="control-label" style={{ width: "100%" }}>
 										Mechanic Name
 									</label>
@@ -1523,23 +1596,23 @@ const SalesRegister = ({
 										tabIndex="8"
 									/>
 								</div>
-              </div>
-
-																							</div>
-            <div className="form-group form-group-sm">
-              <label className="control-label" style={{ width: "100%" }}>
-                Comments
-              </label>
-              <textarea
-                className="form-control input-sm"
-                rows="3"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Add any comments or notes"
-                style={{ resize: "vertical" }}
-              />
-            </div>
-									</div>					{/* Add Item Form */}
+							</div>
+						</div>
+						<div className="form-group form-group-sm">
+							<label className="control-label" style={{ width: "100%" }}>
+								Comments
+							</label>
+							<textarea
+								className="form-control input-sm"
+								rows="3"
+								value={comment}
+								onChange={(e) => setComment(e.target.value)}
+								placeholder="Add any comments or notes"
+								style={{ resize: "vertical" }}
+							/>
+						</div>
+					</div>{" "}
+					{/* Add Item Form */}
 					<form onSubmit={handleAddItem} className="form-horizontal panel panel-default">
 						<div
 							className="panel-body row"
@@ -1549,7 +1622,11 @@ const SalesRegister = ({
 								// Edit mode
 								<>
 									<div className="col-sm-4" style={{ marginBottom: "1em" }}>
-										<h5 style={{ color: "#0066cc" }}>Editing:<br />{currentEditingItem.name}</h5>
+										<h5 style={{ color: "#0066cc" }}>
+											Editing:
+											<br />
+											{currentEditingItem.name}
+										</h5>
 									</div>
 									<div className="col-sm-2">
 										<label className="control-label">Quantity</label>
@@ -1560,7 +1637,6 @@ const SalesRegister = ({
 												className="form-control input-sm"
 												value={quantity}
 												onChange={(e) => handleQuantityChange(e.target.value)}
-												min="1"
 												required
 											/>
 											<span className="input-group-addon" style={{ padding: 0 }}>
@@ -1569,7 +1645,7 @@ const SalesRegister = ({
 													className="form-control input-sm"
 													value={unit}
 													onChange={(e) => setUnit(e.target.value)}
-													style={{ width: "45px", padding: 0, height: "33px", border: 0 }}
+													style={{ width: "38px", padding: 0, height: "33px", border: 0 }}
 												>
 													<option value="pcs">pcs</option>
 													<option value="kg">kg</option>
@@ -1735,120 +1811,204 @@ const SalesRegister = ({
 								</>
 							)}
 						</div>
-            {showItemSuggestions && itemSuggestions && itemSuggestions.length > 0 && (
-              <div
-                className="autocomplete-suggestions"
-                style={{
-                  position: "absolute",
-                  zIndex: 1050,
-                  left: 0,
-                  right: 0,
-                  maxHeight: "400px",
-                  overflowY: "auto",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-                  backgroundColor: "#fff",
-                  border: "1px solid #ddd",
-                  borderRadius: "4px",
-                  width: "96%",
-                  margin: "0 16px",
-                }}
-              >
-                <table className="table table-hover table-condensed" style={{ marginBottom: 0, fontSize: "11px" }}>
-                  <thead>
-                    <tr style={{ backgroundColor: "#f5f5f5" }}>
-                      <th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>Product</th>
-                      <th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>Category</th>
-                      <th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>Brand</th>
-                      <th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>Part No</th>
-                      <th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>OEM No</th>
-                      <th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>Make</th>
-                      <th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>Packing</th>
-                      <th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>Weight</th>
-                      <th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px", textAlign: "right" }}>Price</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {itemSuggestions.map((sugg, idx) => {
-                      const raw = sugg.raw || {};
-                      const isHighlighted = idx === highlightedIndex;
-                      
-                      // Parse attributes JSON
-                      let attributeMap = {};
-                      try {
-                        if (typeof raw.attributes === 'string') {
-                          const parsed = JSON.parse(raw.attributes);
-                          if (Array.isArray(parsed)) {
-                            parsed.forEach(attr => {
-                              if (attr.name && attr.value) {
-                                attributeMap[attr.name.toLowerCase()] = attr.value;
-                              }
-                            });
-                          }
-                        }
-                      } catch {
-                        // ignore parse errors
-                      }
-                      
-                      const getAttr = (names) => {
-                        for (const name of names) {
-                          const key = name.toLowerCase();
-                          if (attributeMap[key]) return attributeMap[key];
-                        }
-                        return "-";
-                      };
-                      
-                      return (
-                        <tr
-                          key={sugg.id ?? idx}
-                          className={isHighlighted ? "active" : ""}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            onSelectSuggestion(sugg);
-                          }}
-                          style={{
-                            cursor: "pointer",
-                            backgroundColor: isHighlighted ? "#337ab7" : "transparent",
-                            color: isHighlighted ? "#0000" : "#333",
-                          }}
-                        >
-                          <td style={{ padding: "4px 6px", fontSize: "11px", fontWeight: "500" }}>
-                            {sugg.label}
-                          </td>
-                          <td style={{ padding: "4px 6px", fontSize: "10px", color: isHighlighted ? "#fff" : "#666" }}>
-                            {raw.category || "-"}
-                          </td>
-                          <td style={{ padding: "4px 6px", fontSize: "10px", color: isHighlighted ? "#fff" : "#666" }}>
-                            {getAttr(["brand"])}
-                          </td>
-                          <td style={{ padding: "4px 6px", fontSize: "10px", color: isHighlighted ? "#fff" : "#666" }}>
-                            {getAttr(["part number", "part no"])}
-                          </td>
-                          <td style={{ padding: "4px 6px", fontSize: "10px", color: isHighlighted ? "#fff" : "#666" }}>
-                            {getAttr(["oem part number", "oem no"])}
-                          </td>
-                          <td style={{ padding: "4px 6px", fontSize: "10px", color: isHighlighted ? "#fff" : "#666" }}>
-                            {getAttr(["made in", "make"])}
-                          </td>
-                          <td style={{ padding: "4px 6px", fontSize: "10px", color: isHighlighted ? "#fff" : "#666" }}>
-                            {raw.pack_name || "-"}
-                          </td>
-                          <td style={{ padding: "4px 6px", fontSize: "10px", color: isHighlighted ? "#fff" : "#666" }}>
-                            {getAttr(["weight"])}
-                          </td>
-                          <td style={{ padding: "4px 6px", fontSize: "11px", textAlign: "right", fontWeight: "500" }}>
-                            {raw.price ?? raw.unit_price ?? raw.cost
-                              ? parseFloat(raw.price ?? raw.unit_price ?? raw.cost).toFixed(2)
-                              : "-"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-					</form>
+						{showItemSuggestions && itemSuggestions && itemSuggestions.length > 0 && (
+							<div
+								className="autocomplete-suggestions"
+								style={{
+									position: "absolute",
+									zIndex: 1050,
+									left: 0,
+									right: 0,
+									maxHeight: "400px",
+									overflowY: "auto",
+									boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+									backgroundColor: "#fff",
+									border: "1px solid #ddd",
+									borderRadius: "4px",
+									width: "96%",
+									margin: "0 16px",
+								}}
+							>
+								<table
+									className="table table-hover table-condensed"
+									style={{ marginBottom: 0, fontSize: "11px" }}
+								>
+									<thead>
+										<tr style={{ backgroundColor: "#f5f5f5" }}>
+											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
+												Product
+											</th>
+											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
+												Category
+											</th>
+											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
+												Brand
+											</th>
+											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
+												Part No
+											</th>
+											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
+												OEM No
+											</th>
+											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
+												Make
+											</th>
+											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
+												Packing
+											</th>
+											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
+												Weight
+											</th>
+											<th
+												style={{
+													padding: "4px 6px",
+													fontWeight: "600",
+													fontSize: "10px",
+													textAlign: "right",
+												}}
+											>
+												Price
+											</th>
+										</tr>
+									</thead>
+									<tbody>
+										{itemSuggestions.map((sugg, idx) => {
+											const raw = sugg.raw || {};
+											const isHighlighted = idx === highlightedIndex;
 
+											// Parse attributes JSON
+											let attributeMap = {};
+											try {
+												if (typeof raw.attributes === "string") {
+													const parsed = JSON.parse(raw.attributes);
+													if (Array.isArray(parsed)) {
+														parsed.forEach((attr) => {
+															if (attr.name && attr.value) {
+																attributeMap[attr.name.toLowerCase()] = attr.value;
+															}
+														});
+													}
+												}
+											} catch {
+												// ignore parse errors
+											}
+
+											const getAttr = (names) => {
+												for (const name of names) {
+													const key = name.toLowerCase();
+													if (attributeMap[key]) return attributeMap[key];
+												}
+												return "-";
+											};
+
+											return (
+												<tr
+													key={sugg.id ?? idx}
+													className={isHighlighted ? "active" : ""}
+													onMouseDown={(e) => {
+														e.preventDefault();
+														onSelectSuggestion(sugg);
+													}}
+													style={{
+														cursor: "pointer",
+														backgroundColor: isHighlighted ? "#337ab7" : "transparent",
+														color: isHighlighted ? "#0000" : "#333",
+													}}
+												>
+													<td
+														style={{
+															padding: "4px 6px",
+															fontSize: "11px",
+															fontWeight: "500",
+														}}
+													>
+														{sugg.label}
+													</td>
+													<td
+														style={{
+															padding: "4px 6px",
+															fontSize: "10px",
+															color: isHighlighted ? "#fff" : "#666",
+														}}
+													>
+														{raw.category || "-"}
+													</td>
+													<td
+														style={{
+															padding: "4px 6px",
+															fontSize: "10px",
+															color: isHighlighted ? "#fff" : "#666",
+														}}
+													>
+														{getAttr(["brand"])}
+													</td>
+													<td
+														style={{
+															padding: "4px 6px",
+															fontSize: "10px",
+															color: isHighlighted ? "#fff" : "#666",
+														}}
+													>
+														{getAttr(["part number", "part no"])}
+													</td>
+													<td
+														style={{
+															padding: "4px 6px",
+															fontSize: "10px",
+															color: isHighlighted ? "#fff" : "#666",
+														}}
+													>
+														{getAttr(["oem part number", "oem no"])}
+													</td>
+													<td
+														style={{
+															padding: "4px 6px",
+															fontSize: "10px",
+															color: isHighlighted ? "#fff" : "#666",
+														}}
+													>
+														{getAttr(["made in", "make"])}
+													</td>
+													<td
+														style={{
+															padding: "4px 6px",
+															fontSize: "10px",
+															color: isHighlighted ? "#fff" : "#666",
+														}}
+													>
+														{raw.pack_name || "-"}
+													</td>
+													<td
+														style={{
+															padding: "4px 6px",
+															fontSize: "10px",
+															color: isHighlighted ? "#fff" : "#666",
+														}}
+													>
+														{getAttr(["weight"])}
+													</td>
+													<td
+														style={{
+															padding: "4px 6px",
+															fontSize: "11px",
+															textAlign: "right",
+															fontWeight: "500",
+														}}
+													>
+														{raw.price ?? raw.unit_price ?? raw.cost
+															? parseFloat(
+																	raw.price ?? raw.unit_price ?? raw.cost
+															  ).toFixed(2)
+															: "-"}
+													</td>
+												</tr>
+											);
+										})}
+									</tbody>
+								</table>
+							</div>
+						)}
+					</form>
 					{/* Cart (replicates register_bak.php layout) */}
 					<div style={{ marginTop: "1em" }}>
 						<h4>Sale Items</h4>
@@ -1992,11 +2152,18 @@ const SalesRegister = ({
 								);
 							})()}
 					</div>
-          {/* Payment Inputs (inline) - moved just before Complete Sale */}
+					{/* Payment Inputs (inline) - moved just before Complete Sale */}
 					<div className="panel panel-default" style={{ marginTop: "1em" }}>
 						<div className="panel-body">
 							<div>
-								<div style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+								<div
+									style={{
+										display: "inline-flex",
+										gap: "0.5rem",
+										alignItems: "center",
+										flexWrap: "wrap",
+									}}
+								>
 									{payment_options &&
 										Object.entries(payment_options).map(([key, label]) => {
 											const isCash = key.toLowerCase() === "cash";
@@ -2033,13 +2200,24 @@ const SalesRegister = ({
 															borderColor: isCash ? "#28a745" : "#ccc",
 														}}
 														readOnly={isCash}
-														title={isCash ? "Cash is auto-calculated based on total and other payments" : ""}
+														title={
+															isCash
+																? "Cash is auto-calculated based on total and other payments"
+																: ""
+														}
 													/>
 												</div>
 											);
 										})}
 
-									<div style={{ display: "flex", alignItems: "flex-end", marginLeft: "0.5rem", height: "48px" }}>
+									<div
+										style={{
+											display: "flex",
+											alignItems: "flex-end",
+											marginLeft: "0.5rem",
+											height: "48px",
+										}}
+									>
 										<div style={{ padding: "8px 0" }}>
 											<strong style={{ marginRight: "0.5rem" }}>Total:</strong>
 											<span style={{ fontSize: "14px", fontWeight: "bold" }}>
@@ -2048,7 +2226,14 @@ const SalesRegister = ({
 										</div>
 									</div>
 
-									<div style={{ marginLeft: "auto", display: "flex", alignItems: "flex-end", height: "48px" }}>
+									<div
+										style={{
+											marginLeft: "auto",
+											display: "flex",
+											alignItems: "flex-end",
+											height: "48px",
+										}}
+									>
 										{/* Payments are now auto-applied on input change */}
 									</div>
 								</div>

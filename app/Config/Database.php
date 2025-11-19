@@ -42,6 +42,7 @@ class Database extends Config
         'strictOn' => false,
         'failover' => [],
         'port' => 3306,
+        'socket' => '/Applications/MAMP/tmp/mysql/mysql.sock',
         'dateFormat'   => [
             'date'     => 'Y-m-d',
             'datetime' => 'Y-m-d H:i:s',

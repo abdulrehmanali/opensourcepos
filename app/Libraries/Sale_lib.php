@@ -228,29 +228,56 @@ class Sale_lib
     /**
      * @return string
      */
-    public function get_comment(): string
+    public function get_comment(int $sale_id = null): string
     {
-        // avoid returning a null that results in a 0 in the comment if nothing is set/available
-        $comment = $this->session->get('sales_comment');
-
-        return empty($comment) ? '' : $comment;
+        // Use provided sale_id
+        if($sale_id === null) {
+            return '';
+        }
+        
+        // Try database
+        try {
+            $sale = $this->sale->find($sale_id);
+            if($sale && isset($sale['comment'])) {
+                return $sale['comment'] ?? '';
+            }
+        } catch (\Exception $e) {
+            log_message('error', 'Error: ' . $e->getMessage());
+        }
+        
+        return '';
     }
 
     /**
      * @param string $comment
+     * @param int|null $sale_id Optional sale ID. If provided, saves to database
      * @return void
      */
-    public function set_comment(string $comment): void
+    public function set_comment(string $comment, int $sale_id = null): void
     {
-        $this->session->set('sales_comment', $comment);
+        // Save to database if sale_id provided
+        if($sale_id) {
+            try {
+                $this->sale->update($sale_id, ['comment' => $comment]);
+            } catch (\Exception $e) {
+                log_message('error', 'Error: ' . $e->getMessage());
+            }
+        }
     }
 
     /**
      * @return void
      */
-    public function clear_comment(): void
+    public function clear_comment(int $sale_id = null): void
     {
-        $this->session->remove('sales_comment');
+        // Clear from database if sale_id provided
+        if($sale_id) {
+            try {
+                $this->sale->update($sale_id, ['comment' => '']);
+            } catch (\Exception $e) {
+                log_message('error', 'Error: ' . $e->getMessage());
+            }
+        }
     }
 
     /**
@@ -792,63 +819,116 @@ class Sale_lib
     }
 
     /**
+     * @param int|null $sale_id Optional sale ID. If not provided, returns -1
      * @return int
      */
-    public function get_customer(): int
+    public function get_customer(int $sale_id = null): int
     {
-        if(!$this->session->get('sales_customer'))
-        {
-            $this->set_customer(-1);    //TODO: Replace -1 with a constant
+        // Use provided sale_id, if none provided return -1
+        if($sale_id === null) {
+            return -1;
         }
-
-        return $this->session->get('sales_customer');
+        
+        // Get from database using provided sale_id
+        try {
+            $sale = $this->sale->find($sale_id);
+            if($sale && isset($sale['customer_id'])) {
+                return (int)$sale['customer_id'];
+            }
+        } catch (\Exception $e) {
+            log_message('error', 'Error getting customer from sale: ' . $e->getMessage());
+        }
+        
+        return -1;
     }
 
     /**
      * @param int $customer_id
+     * @param int|null $sale_id Optional sale ID. If provided, saves to database
      * @return void
      */
-    public function set_customer(int $customer_id): void
+    public function set_customer(int $customer_id, int $sale_id = null): void
     {
-        $this->session->set('sales_customer', $customer_id);
+        // Save to database if sale_id provided
+        if($sale_id) {
+            try {
+                $this->sale->update($sale_id, ['customer_id' => $customer_id]);
+            } catch (\Exception $e) {
+                log_message('error', 'Error updating customer in sale: ' . $e->getMessage());
+            }
+        }
     }
 
     /**
      * @param int $vehicle_id
+     * @param int|null $sale_id Optional sale ID. If provided, saves to database
      * @return void
      */
-    public function set_vehicle(int $vehicle_id): void
+    public function set_vehicle(int $vehicle_id, int $sale_id = null): void
     {
-        $this->session->set('sales_vehicle', $vehicle_id);
+        // Save to database if sale_id provided
+        if($sale_id) {
+            try {
+                $this->sale->update($sale_id, ['vehicle_id' => $vehicle_id]);
+            } catch (\Exception $e) {
+                log_message('error', 'Error updating vehicle in sale: ' . $e->getMessage());
+            }
+        }
     }
     
-    // Get Vehicle ID
     /**
+     * @param int|null $sale_id Optional sale ID. If not provided, returns -1
      * @return int|null
      */
-    public function get_vehicle(): ?int
+    public function get_vehicle(int $sale_id = null): ?int
     {
-        if(!$this->session->get('sales_vehicle'))
-        {
-            $this->set_vehicle(-1);    //TODO: Replace null with a constant
+        // Use provided sale_id, if none provided return -1
+        if($sale_id === null) {
+            return -1;
         }
-        return $this->session->get('sales_vehicle');
+        
+        // Get from database using provided sale_id
+        try {
+            $sale = $this->sale->find($sale_id);
+            if($sale && isset($sale['vehicle_id'])) {
+                return (int)$sale['vehicle_id'];
+            }
+        } catch (\Exception $e) {
+            log_message('error', 'Error getting vehicle from sale: ' . $e->getMessage());
+        }
+        
+        return -1;
+    }
+
+    /**
+     * @param int|null $sale_id Optional sale ID. If provided, removes vehicle from that sale
+     * @return void
+     */
+    public function remove_vehicle(int $sale_id = null): void
+    {
+        // Remove from database if sale_id provided
+        if($sale_id) {
+            try {
+                $this->sale->update($sale_id, ['vehicle_id' => -1]);
+            } catch (\Exception $e) {
+                log_message('error', 'Error removing vehicle from sale: ' . $e->getMessage());
+            }
+        }
     }
 
     /**
      * @return void
      */
-    public function remove_vehicle(): void
+    public function remove_customer(int $sale_id = null): void
     {
-        $this->session->remove('sales_vehicle');
-    }
-
-    /**
-     * @return void
-     */
-    public function remove_customer(): void
-    {
-        $this->session->remove('sales_customer');
+        // Set customer_id to -1 in database if sale_id provided
+        if($sale_id) {
+            try {
+                $this->sale->update($sale_id, ['customer_id' => -1]);
+            } catch (\Exception $e) {
+                log_message('error', 'Error: ' . $e->getMessage());
+            }
+        }
     }
 
     /**
@@ -1485,21 +1565,37 @@ class Sale_lib
     /**
      * @return int
      */
-    public function get_sale_id(): int
+    /**
+     * @param int|null $sale_id Optional sale ID. If not provided, returns -1
+     * @return int
+     */
+    public function get_sale_id(int $sale_id = null): int
     {
-        return $this->session->get('sale_id');
+        // Return provided sale_id if valid
+        if($sale_id && $sale_id !== -1) {
+            try {
+                $sale = $this->sale->find($sale_id);
+                if($sale) {
+                    return (int)$sale_id;
+                }
+            } catch (\Exception $e) {
+                log_message('error', 'Error: ' . $e->getMessage());
+            }
+        }
+        
+        return -1;
     }
 
     /**
+     * @param int|null $sale_id Optional sale ID. Clears that sale from database
      * @return void
      */
-    public function clear_all(): void
+    public function clear_all(int $sale_id = null): void
     {
-        $this->session->set('sale_id', -1);    //TODO: Replace -1 with constant
         $this->clear_mode();
         $this->clear_table();
         $this->empty_cart();
-        $this->clear_comment();
+        $this->clear_comment($sale_id);
         $this->clear_email_receipt();
         $this->clear_invoice_number();
         $this->clear_quote_number();
@@ -1507,9 +1603,18 @@ class Sale_lib
         $this->clear_sale_type();
         $this->clear_giftcard_remainder();
         $this->empty_payments();
-        $this->remove_customer();
+        $this->remove_customer($sale_id);
         $this->clear_cash_flags();
-        $this->clear_vehicle_data(); // Add this line to clear all vehicle data
+        $this->clear_vehicle_data($sale_id);
+        
+        // Also reset mechanic_name in database for the sale_id
+        if($sale_id && $sale_id !== -1) {
+            try {
+                $this->sale->update($sale_id, ['mechanic_name' => '']);
+            } catch (\Exception $e) {
+                log_message('error', 'Error: ' . $e->getMessage());
+            }
+        }
     }
 
     /**
@@ -1991,12 +2096,12 @@ public function get_vehicle_data(): array
  * 
  * @return void
  */
-public function clear_vehicle_data(): void
+public function clear_vehicle_data(int $sale_id = null): void
 {
     $this->clear_vehicle_kilometer();
     $this->clear_vehicle_avg_oil_km();
     $this->clear_vehicle_avg_km_day();
     $this->clear_vehicle_next_visit();
-    $this->remove_vehicle();
+    $this->remove_vehicle($sale_id);
 }
 }

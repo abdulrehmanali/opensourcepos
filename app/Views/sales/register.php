@@ -199,7 +199,7 @@ if ($isDevelopment) {
       const currentSaleId = getCurrentSaleId();
       if (!currentSaleId) return;
 
-      fetch(`${BASE_URL}/${controller_name}/getPreviousSale/${currentSaleId}`)
+      fetch(`${BASE_URL}/${controller_name}/previousSale/${currentSaleId}`)
         .then(response => response.json())
         .then(data => {
           if (data.success && data.sale_id) {

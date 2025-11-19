@@ -199,6 +199,7 @@ class Sales extends Secure_Controller
   /**
    * Initialize or get a sale record for the React sales register
    * Creates a new sale if sale_id not provided or doesn't exist
+   * Loads existing sale with all related data if sale_id is valid
    * 
    * @return void
    * @noinspection PhpUnused
@@ -207,26 +208,88 @@ class Sales extends Secure_Controller
   {
     $sale_id = $this->request->getGet('sale_id', FILTER_SANITIZE_NUMBER_INT);
     
-    // If sale_id provided and valid, use it; otherwise create new sale
-    if($sale_id && $this->sale->exists($sale_id, true)) {
-      $existing_sale = $this->sale->get_info($sale_id)->getRow();
+    // If sale_id provided and valid, load and return it
+    if($sale_id) {
+      // Query the sales table directly to get sale info (don't use get_info which requires items)
+      $sale_record = $this->db->table('sales')
+        ->where('sale_id', $sale_id)
+        ->get()
+        ->getRow();
       
-      // Load associated vehicle data if vehicle_id exists
-      $vehicle_data = null;
-      if(!empty($existing_sale->vehicle_id)) {
-        $vehicleModel = model(Vehicle::class);
-        $vehicle_data = $vehicleModel->find($existing_sale->vehicle_id);
+      if($sale_record) {
+        $existing_sale = $sale_record;
+        
+        // Load associated vehicle data if vehicle_id exists and is not -1 (no vehicle)
+        $vehicle_data = null;
+        if(!empty($existing_sale->vehicle_id) && $existing_sale->vehicle_id != -1) {
+          $vehicleModel = model(Vehicle::class);
+          $vehicle_data = $vehicleModel->find($existing_sale->vehicle_id);
+        }
+        
+        // Load customer data if customer_id exists
+        $customer_data = null;
+        if(!empty($existing_sale->customer_id) && $existing_sale->customer_id != -1) {
+          $customer_data = $this->customer->get_info($existing_sale->customer_id);
+        }
+        
+        // Load cart items for this sale from sales_items table with item details
+        $cart_items = [];
+        $items = $this->db->table('sales_items')
+          ->select('sales_items.item_id, sales_items.line, items.name, sales_items.quantity_purchased, sales_items.item_unit_price, sales_items.discount, sales_items.discount_type, sales_items.description')
+          ->join('items', 'items.item_id = sales_items.item_id', 'LEFT')
+          ->where('sales_items.sale_id', $sale_id)
+          ->get()
+          ->getResult();
+        
+        if($items) {
+          foreach($items as $item) {
+            $cart_items[] = [
+              'item_id' => $item->item_id,
+              'line' => $item->line,
+              'name' => $item->name ?? 'Unknown Item',
+              'quantity_purchased' => $item->quantity_purchased,
+              'item_unit_price' => $item->item_unit_price,
+              'discount' => $item->discount,
+              'discount_type' => $item->discount_type,
+              'description' => $item->description ?? ''
+            ];
+          }
+        }
+        
+        // Load payments for this sale from sales_payments table
+        $payments_data = [];
+        $payments = $this->db->table('sales_payments')
+          ->where('sale_id', $sale_id)
+          ->get()
+          ->getResult();
+        
+        if($payments) {
+          foreach($payments as $payment) {
+            $payments_data[] = [
+              'payment_id' => $payment->payment_id,
+              'payment_type' => $payment->payment_type,
+              'payment_amount' => $payment->payment_amount,
+              'payment_time' => $payment->payment_time
+            ];
+          }
+        }
+        
+        echo json_encode([
+          'success' => true,
+          'sale_id' => $sale_id,
+          'sale' => $existing_sale,
+          'vehicle' => $vehicle_data,
+          'customer' => $customer_data,
+          'cart_items' => $cart_items,
+          'payments' => $payments_data,
+          'message' => 'Sale loaded'
+        ]);
+        return;
       }
-      
-      echo json_encode([
-        'success' => true,
-        'sale_id' => $sale_id,
-        'sale' => $existing_sale,
-        'vehicle' => $vehicle_data
-      ]);
-    } else {
-      // Create new sale record
-      $new_sale_data = [
+    }
+    
+    // Create new sale record if no valid sale_id was provided or sale doesn't exist
+    $new_sale_data = [
         'customer_id' => -1,
         'employee_id' => $this->employee->get_logged_in_employee_info()->person_id,
         'location_id' => $this->sale_lib->get_sale_location(),
@@ -242,15 +305,11 @@ class Sales extends Secure_Controller
       $this->sale->insert($new_sale_data);
       $new_sale_id = (int)$this->db->insertID();
       
-      // Set in session for compatibility
-      $this->session->set('sale_id', $new_sale_id);
-      
       echo json_encode([
         'success' => true,
         'sale_id' => $new_sale_id,
         'message' => 'New sale created'
       ]);
-    }
   }
 
   /**
@@ -287,7 +346,7 @@ class Sales extends Secure_Controller
       return;
     }
     
-    // Update sale record with customer, mechanic name, and comment
+    // Update sale record with customer, mechanic name, comment, and vehicle data
     $update_data = [];
     if($customer_id !== null) {
       $update_data['customer_id'] = $customer_id;
@@ -298,21 +357,9 @@ class Sales extends Secure_Controller
     if($mechanic_name !== null) {
       $update_data['mechanic_name'] = $mechanic_name;
     }
-    
-    $this->sale->update($sale_id, $update_data);
-    
-    // Save payment if provided
-    if($payment_type && $payment_amount !== null && $payment_amount > 0) {
-      try {
-        // Create a payment entry using sale_lib
-        $this->sale_lib->add_payment($payment_type, (float)$payment_amount);
-      } catch (\Exception $e) {
-        // Log error but don't block the save
-        log_message('error', 'Payment save error: ' . $e->getMessage());
-      }
-    }
-    
-    // Save vehicle data if vehicle_no is provided
+
+        // Save vehicle data if vehicle_no is provided
+    $saved_vehicle_id = null;
     if($vehicle_no) {
       $vehicleModel = model(Vehicle::class);
       $vehicle_data = [
@@ -328,8 +375,39 @@ class Sales extends Secure_Controller
       $existing_vehicle = $vehicleModel->where('vehicle_no', $vehicle_no)->first();
       if($existing_vehicle) {
         $vehicleModel->update($existing_vehicle->id, $vehicle_data);
+        $saved_vehicle_id = $existing_vehicle->id;
       } else {
         $vehicleModel->insert($vehicle_data);
+        $saved_vehicle_id = $vehicleModel->getInsertID();
+      }
+    }
+    
+    // Add vehicle data to sales table
+    if($saved_vehicle_id !== null && $saved_vehicle_id > 0) {
+      $update_data['vehicle_id'] = $saved_vehicle_id;
+    }
+    if($vehicle_kilometer !== null) {
+      $update_data['vehicle_kilometer'] = (float)$vehicle_kilometer;
+    }
+    if($vehicle_avg_oil_km !== null) {
+      $update_data['vehicle_avg_oil_km'] = (float)$vehicle_avg_oil_km;
+    }
+    if($vehicle_avg_km_day !== null) {
+      $update_data['vehicle_avg_km_day'] = (float)$vehicle_avg_km_day;
+    }
+    
+    if(!empty($update_data)) {
+      $this->sale->update($sale_id, $update_data);
+    }
+    
+    // Save payment if provided
+    if($payment_type && $payment_amount !== null && $payment_amount > 0) {
+      try {
+        // Create a payment entry using sale_lib
+        $this->sale_lib->add_payment($payment_type, (float)$payment_amount);
+      } catch (\Exception $e) {
+        // Log error but don't block the save
+        log_message('error', 'Payment save error: ' . $e->getMessage());
       }
     }
     
@@ -353,6 +431,14 @@ class Sales extends Secure_Controller
    * @return void
    * @noinspection PhpUnused
    */
+  /**
+   * Get the previous sale ID for navigation
+   * Dynamically queries database to find the sale with the ID right before the current one
+   *
+   * @param int $sale_id
+   * @return void
+   * @noinspection PhpUnused
+   */
   public function getPreviousSale($sale_id = null): void
   {
     if (!$sale_id) {
@@ -360,16 +446,11 @@ class Sales extends Secure_Controller
       return;
     }
 
-    // Get the current sale to find its sale_time
-    $current_sale = $this->sale->get_info($sale_id)->getRow();
-    if (!$current_sale) {
-      echo json_encode(['success' => false, 'message' => 'Sale not found']);
-      return;
-    }
-
-    // Find the most recent sale before this one (by sale_time)
-    $previous = $this->sale->where('sale_time <', $current_sale->sale_time)
-      ->orderBy('sale_time', 'DESC')
+    // Find the sale with the highest ID that is less than the current sale_id
+    $previous = $this->db->table('sales')
+      ->select('sale_id')
+      ->where('sale_id <', $sale_id)
+      ->orderBy('sale_id', 'DESC')
       ->limit(1)
       ->get()
       ->getRow();
@@ -383,7 +464,7 @@ class Sales extends Secure_Controller
 
   /**
    * Get the next sale ID for navigation
-   * Used by sales register to navigate forward through sales
+   * Dynamically queries database to find the sale with the ID right after the current one
    *
    * @param int $sale_id
    * @return void
@@ -396,16 +477,11 @@ class Sales extends Secure_Controller
       return;
     }
 
-    // Get the current sale to find its sale_time
-    $current_sale = $this->sale->get_info($sale_id)->getRow();
-    if (!$current_sale) {
-      echo json_encode(['success' => false, 'message' => 'Sale not found']);
-      return;
-    }
-
-    // Find the earliest sale after this one (by sale_time)
-    $next = $this->sale->where('sale_time >', $current_sale->sale_time)
-      ->orderBy('sale_time', 'ASC')
+    // Find the sale with the lowest ID that is greater than the current sale_id
+    $next = $this->db->table('sales')
+      ->select('sale_id')
+      ->where('sale_id >', $sale_id)
+      ->orderBy('sale_id', 'ASC')
       ->limit(1)
       ->get()
       ->getRow();
@@ -420,18 +496,70 @@ class Sales extends Secure_Controller
   /**
    * Return current cart via AJAX
    * Used by the React frontend at /sales/getCart
+   * If sale_id is provided, load items from database for that sale
+   * Otherwise, return the session-based cart
    *
    * @return void
    * @noinspection PhpUnused
    */
   public function getCart(): void
   {
-    $cart = $this->sale_lib->get_cart();
+    // Check both GET and POST for sale_id parameter
+    $sale_id = $this->request->getGet('sale_id') ?? $this->request->getPost('sale_id');
+    $sale_id = $this->request->getVar('sale_id', FILTER_SANITIZE_NUMBER_INT);
+    
+    if ($sale_id) {
+      // Load cart items for specific sale from database
+      try {
+        $items = $this->db->table('sales_items')
+          ->select('sales_items.item_id, sales_items.line, items.name, sales_items.quantity_purchased, 
+                    sales_items.item_unit_price, sales_items.discount, sales_items.discount_type, 
+                    sales_items.description')
+          ->join('items', 'items.item_id = sales_items.item_id', 'LEFT')
+          ->where('sales_items.sale_id', $sale_id)
+          ->orderBy('sales_items.line', 'ASC')
+          ->get()
+          ->getResult();
+        
+        // Convert to proper format for frontend
+        $cart = [];
+        if ($items) {
+          foreach ($items as $item) {
+            $cart[] = [
+              'item_id' => $item->item_id,
+              'line' => $item->line,
+              'name' => $item->name ?? 'Unknown Item',
+              'quantity_purchased' => $item->quantity_purchased,
+              'quantity' => $item->quantity_purchased,
+              'item_unit_price' => $item->item_unit_price,
+              'price' => $item->item_unit_price,
+              'discount' => $item->discount,
+              'discount_type' => $item->discount_type,
+              'description' => $item->description ?? ''
+            ];
+          }
+        }
+        
+        echo json_encode([
+          'success' => true,
+          'cart' => $cart
+        ]);
+      } catch (\Exception $e) {
+        echo json_encode([
+          'success' => false,
+          'message' => 'Error loading cart items: ' . $e->getMessage(),
+          'cart' => []
+        ]);
+      }
+    } else {
+      // Fall back to current session-based cart if no sale_id provided
+      $cart = $this->sale_lib->get_cart();
 
-    echo json_encode([
-      'success' => true,
-      'cart' => $cart
-    ]);
+      echo json_encode([
+        'success' => true,
+        'cart' => $cart
+      ]);
+    }
   }
 
   /**
@@ -808,13 +936,22 @@ class Sales extends Secure_Controller
   public function postAdd(): void
   {
     $data = [];
+    
+    // Check if we're adding to a specific sale_id (from React component)
+    $request_sale_id = $this->request->getPost('sale_id', FILTER_SANITIZE_NUMBER_INT);
+    $use_database = !empty($request_sale_id);
 
     $discount = $this->config['default_sales_discount'];
     $discount_type = $this->config['default_sales_discount_type'];
 
-    // check if any discount is assigned to the selected customer
-    $customer_id = $this->sale_lib->get_customer();
-    if ($customer_id != NEW_ENTRY) {
+    // Get customer ID - either from request or from session
+    if($use_database) {
+      $customer_id = $this->request->getPost('customer_id', FILTER_SANITIZE_NUMBER_INT) ?? -1;
+    } else {
+      $customer_id = $this->sale_lib->get_customer();
+    }
+    
+    if ($customer_id != NEW_ENTRY && $customer_id != -1) {
       // load the customer discount if any
       $customer_discount = $this->customer->get_info($customer_id)->discount;
       $customer_discount_type = $this->customer->get_info($customer_id)->discount_type;
@@ -886,9 +1023,61 @@ class Sales extends Secure_Controller
       }
     }
     $item_location = $this->sale_lib->get_sale_location();
+    
+    // Get the item location from request if in database mode
+    if($use_database) {
+      $posted_location = $this->request->getPost('location', FILTER_SANITIZE_NUMBER_INT);
+      if($posted_location) {
+        $item_location = $posted_location;
+      }
+    }
+    
+    // Get mode - for database mode, just use standard (no returns)
+    $mode = $use_database ? 'sale' : $this->sale_lib->get_mode();
 
     if ($mode == 'return' && $this->sale->is_valid_receipt($item_id_or_number_or_item_kit_or_receipt)) {
       $this->sale_lib->return_entire_sale($item_id_or_number_or_item_kit_or_receipt);
+    } elseif ($use_database && !empty($item_id_or_number_or_item_kit_or_receipt)) {
+      // Add item directly to database for the specific sale
+      // Get the item ID first (handle by ID, barcode, or SKU)
+      $item = $this->item->get_info_by_id_or_number($item_id_or_number_or_item_kit_or_receipt);
+      
+      if(!$item) {
+        $data['error'] = lang('Sales.unable_to_add_item');
+      } else {
+        // Get the next line number for this sale
+        $last_line = $this->db->table('sales_items')
+          ->selectMax('line')
+          ->where('sale_id', $request_sale_id)
+          ->get()
+          ->getRow();
+        $line = ($last_line && $last_line->line) ? (int)$last_line->line + 1 : 1;
+        
+        // Insert the item into sales_items table
+        $insert_data = [
+          'sale_id' => $request_sale_id,
+          'item_id' => $item->item_id,
+          'line' => $line,
+          'quantity_purchased' => $quantity,
+          'item_unit_price' => $unit_price,
+          'discount' => $discount,
+          'discount_type' => $discount_type,
+          'description' => $item->description
+        ];
+        
+        if($this->db->table('sales_items')->insert($insert_data)) {
+          $data['success'] = lang('Sales.item_added');
+          // Return success in JSON format for React component
+          echo json_encode([
+            'success' => true,
+            'message' => lang('Sales.item_added'),
+            'line' => $line
+          ]);
+          return;
+        } else {
+          $data['error'] = lang('Sales.unable_to_add_item');
+        }
+      }
     } elseif ($this->item_kit->is_valid_item_kit($item_id_or_number_or_item_kit_or_receipt)) {
       // Add kit item to order if one is assigned
       $pieces = explode(' ', $item_id_or_number_or_item_kit_or_receipt);
@@ -933,7 +1122,22 @@ class Sales extends Secure_Controller
       }
     }
 
-    $this->_reload($data);
+    // Return JSON for database mode, otherwise use session-based reload
+    if($use_database) {
+      if(isset($data['error'])) {
+        echo json_encode([
+          'success' => false,
+          'message' => $data['error']
+        ]);
+      } else {
+        echo json_encode([
+          'success' => false,
+          'message' => 'Unable to add item'
+        ]);
+      }
+    } else {
+      $this->_reload($data);
+    }
   }
 
   /**
@@ -1070,17 +1274,65 @@ class Sales extends Secure_Controller
    */
   public function postComplete(): void    //TODO: this function is huge.  Probably should be refactored.
   {
-    $sale_id = $this->sale_lib->get_sale_id();
-    $vehicle_id = $this->sale_lib->get_vehicle();
-    $vehicle_kilometer = $this->sale_lib->get_vehicle_kilometer();
-    $vehicle_avg_oil_km = $this->sale_lib->get_vehicle_avg_oil_km();
-    $vehicle_avg_km_day = $this->sale_lib->get_vehicle_avg_km_day();
-    $next_visit = $this->session->get('vehicle_next_visit');
+    // Check if sale_id is provided as a parameter for direct receipt retrieval
+    $request_sale_id = $this->request->getPost('sale_id') ?? $this->request->getGet('sale_id');
+    
+    if($request_sale_id) {
+      // Load specific sale from database
+      $sale_id = $request_sale_id;
+      $sale_record = $this->sale->get_info($sale_id)->getRow();
+      
+      if(!$sale_record) {
+        echo json_encode([
+          'success' => false,
+          'message' => 'Sale not found'
+        ]);
+        return;
+      }
+      
+      // Load all sale data from database instead of session
+      $customer_id = $sale_record->customer_id;
+      $vehicle_id = $sale_record->vehicle_id;
+      $vehicle_kilometer = $sale_record->vehicle_kilometer;
+      $vehicle_avg_oil_km = $sale_record->vehicle_avg_oil_km;
+      $vehicle_avg_km_day = $sale_record->vehicle_avg_km_day;
+      $next_visit = '';
+      
+      // Get cart items from database
+      $builder = $this->db->table('sales_items');
+      $builder->select('sales_items.*, items.name');
+      $builder->join('items', 'sales_items.item_id = items.item_id', 'LEFT');
+      $builder->where('sales_items.sale_id', $sale_id);
+      $cart = $builder->get()->getResultArray();
+      
+      // Get payments from database
+      $builder = $this->db->table('sales_payments');
+      $builder->where('sale_id', $sale_id);
+      $payments_records = $builder->get()->getResultArray();
+      $payments = [];
+      foreach($payments_records as $payment) {
+        $payments[$payment['payment_type']] = [
+          'payment_type' => $payment['payment_type'],
+          'payment_amount' => $payment['payment_amount']
+        ];
+      }
+    } else {
+      // Use session-based data as before
+      $sale_id = $this->sale_lib->get_sale_id();
+      $vehicle_id = $this->sale_lib->get_vehicle();
+      $vehicle_kilometer = $this->sale_lib->get_vehicle_kilometer();
+      $vehicle_avg_oil_km = $this->sale_lib->get_vehicle_avg_oil_km();
+      $vehicle_avg_km_day = $this->sale_lib->get_vehicle_avg_km_day();
+      $next_visit = $this->session->get('vehicle_next_visit');
+      $cart = $this->sale_lib->get_cart();
+      $customer_id = $this->sale_lib->get_customer();
+      $payments = $this->sale_lib->get_payments();
+    }
+    
     $data = [];
     $data['dinner_table'] = $this->sale_lib->get_dinner_table();
 
-    $data['cart'] = $this->sale_lib->get_cart();
-
+    $data['cart'] = $cart;
     $data['include_hsn'] = (bool)$this->config['include_hsn'];
     $__time = time();
     $data['transaction_time'] = to_datetime($__time);
@@ -1123,7 +1375,7 @@ class Sales extends Secure_Controller
     $tax_details = $this->tax_lib->get_taxes($data['cart']);    //TODO: Duplicated code
     $data['taxes'] = $tax_details[0];
     $data['discount'] = $this->sale_lib->get_discount();
-    $data['payments'] = $this->sale_lib->get_payments();
+    $data['payments'] = $payments;
 
     // Returns 'subtotal', 'total', 'cash_total', 'payment_total', 'amount_due', 'cash_amount_due', 'payments_cover_total'
     $totals = $this->sale_lib->get_totals($tax_details[0]);
@@ -1152,6 +1404,9 @@ class Sales extends Secure_Controller
       // Save cash refund to the cash payment transaction if found, if not then add as new Cash transaction
 
       if (array_key_exists(lang('Sales.cash'), $data['payments'])) {
+        if (!isset($data['payments'][lang('Sales.cash')]['cash_refund'])) {
+          $data['payments'][lang('Sales.cash')]['cash_refund'] = 0;
+        }
         $data['payments'][lang('Sales.cash')]['cash_refund'] = $data['amount_change'];
       } else {
         $payment = [
@@ -1842,7 +2097,7 @@ class Sales extends Secure_Controller
     $data['selected_employee_id'] = $sale_info['employee_id'];
     $data['selected_employee_name'] = $employee_info->first_name . ' ' . $employee_info->last_name;
     $data['sale_info'] = $sale_info;
-    $balance_due = round($sale_info['amount_due'] - $sale_info['amount_tendered'] + $sale_info['cash_refund'], totals_decimals(), PHP_ROUND_HALF_UP);
+    $balance_due = round($sale_info['amount_due'] - $sale_info['amount_tendered'] + ($sale_info['cash_refund'] ?? 0), totals_decimals(), PHP_ROUND_HALF_UP);
 
     if (!$this->sale_lib->reset_cash_rounding() && $balance_due < 0) {
       $balance_due = 0;
