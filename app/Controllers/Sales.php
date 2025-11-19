@@ -290,7 +290,7 @@ class Sales extends Secure_Controller
     
     // Create new sale record if no valid sale_id was provided or sale doesn't exist
     $new_sale_data = [
-        'customer_id' => -1,
+        'customer_id' => null,
         'employee_id' => $this->employee->get_logged_in_employee_info()->person_id,
         'location_id' => $this->sale_lib->get_sale_location(),
         'sale_time' => date('Y-m-d H:i:s'),
@@ -1195,11 +1195,28 @@ class Sales extends Secure_Controller
    */
   public function getDeleteItem(int $item_id): void
   {
-    $this->sale_lib->delete_item($item_id);
-
-    $this->sale_lib->empty_payments();
-
-    $this->_reload();    //TODO: Hungarian notation
+    // Check if sale_id is provided for database-driven deletion
+    $sale_id = $this->request->getGet('sale_id', FILTER_SANITIZE_NUMBER_INT);
+    
+    if($sale_id) {
+      // Delete item from sales_items table for specific sale
+      $this->db->table('sales_items')
+        ->where('sale_id', $sale_id)
+        ->where('line', $item_id)
+        ->delete();
+      
+      // Return success response for API
+      echo json_encode([
+        'success' => true,
+        'message' => 'Item deleted successfully',
+        'sale_id' => $sale_id
+      ]);
+    } else {
+      // Session-based deletion
+      $this->sale_lib->delete_item($item_id);
+      $this->sale_lib->empty_payments();
+      $this->_reload();
+    }
   }
 
   /**
@@ -1230,15 +1247,64 @@ class Sales extends Secure_Controller
       $discount = $discount_toggle
         ? parse_quantity($this->request->getPost('discount'))
         : parse_decimals($this->request->getPost('discount'));
+      
+      // Check if sale_id is provided for database-driven update
+      $sale_id = $this->request->getPost('sale_id', FILTER_SANITIZE_NUMBER_INT);
 
       try {
-        // Edit the item - description and serialnumber are empty for React frontend
-        $this->sale_lib->edit_item($line_id, '', '', $quantity, $discount, $discount_type, $price, null);
-        $this->sale_lib->empty_payments();
+        if($sale_id) {
+          // Update item in sales_items table for specific sale
+          $this->db->table('sales_items')
+            ->where('sale_id', $sale_id)
+            ->where('line', $line_id)
+            ->update([
+              'quantity_purchased' => $quantity,
+              'item_unit_price' => $price,
+              'discount' => $discount,
+              'discount_type' => $discount_type
+            ]);
+          
+          // Get updated cart from database
+          $items = $this->db->table('sales_items')
+            ->select('sales_items.item_id, sales_items.line, items.name, sales_items.quantity_purchased, 
+                      sales_items.item_unit_price, sales_items.discount, sales_items.discount_type, 
+                      sales_items.description')
+            ->join('items', 'items.item_id = sales_items.item_id', 'LEFT')
+            ->where('sales_items.sale_id', $sale_id)
+            ->orderBy('sales_items.line', 'ASC')
+            ->get()
+            ->getResult();
+          
+          $cart = [];
+          if ($items) {
+            foreach ($items as $item) {
+              $cart[] = [
+                'item_id' => $item->item_id,
+                'line' => $item->line,
+                'name' => $item->name ?? 'Unknown Item',
+                'quantity_purchased' => $item->quantity_purchased,
+                'quantity' => $item->quantity_purchased,
+                'item_unit_price' => $item->item_unit_price,
+                'price' => $item->item_unit_price,
+                'discount' => $item->discount,
+                'discount_type' => $item->discount_type,
+                'description' => $item->description ?? ''
+              ];
+            }
+          }
+          
+          $response['success'] = true;
+          $response['message'] = lang('Sales.item_updated_successfully');
+          $response['cart'] = $cart;
+        } else {
+          // Edit the item - description and serialnumber are empty for React frontend
+          $this->sale_lib->edit_item($line_id, '', '', $quantity, $discount, $discount_type, $price, null);
+          $this->sale_lib->empty_payments();
 
-        $response['success'] = true;
-        $response['message'] = lang('Sales.item_updated_successfully');
-        $response['cart'] = $this->sale_lib->get_cart();
+          $response['success'] = true;
+          $response['message'] = lang('Sales.item_updated_successfully');
+          $response['cart'] = $this->sale_lib->get_cart();
+        }
       } catch (\Exception $e) {
         $response['message'] = $e->getMessage();
       }

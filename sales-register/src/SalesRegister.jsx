@@ -13,7 +13,7 @@ const SalesRegister = ({
 	selected_vehicle_id = null,
 	selected_vehicle_no = "",
 }) => {
-	const BASE_URL = "http://localhost:8888/opensourcepos/public";
+	const BASE_URL = "http://localhost/public";
 	console.log(customer_id);
 	// State management
 	const [vehicleNo, setVehicleNo] = useState(selected_vehicle_no || "");
@@ -708,6 +708,20 @@ const SalesRegister = ({
 		};
 	}, [phoneNumber]);
 
+	// Update document title when Vehicle No or Customer Name changes
+	useEffect(() => {
+		let title = "Zafcom Point of Sale";
+		
+		if (vehicleNo || customerName) {
+			const parts = [];
+			if (vehicleNo) parts.push(vehicleNo);
+			if (customerName) parts.push(customerName);
+			title = `${parts.join(" | ")} - Zafcom Point of Sale`;
+		}
+		
+		document.title = title;
+	}, [vehicleNo, customerName]);
+
 	// Keep select2 visual value in sync when vehicleNo state changes (if select2 is present)
 	useEffect(() => {
 		const el = vehicleInputRef.current;
@@ -770,6 +784,7 @@ const SalesRegister = ({
 			const lineId = currentEditingItem.line ?? currentEditingItem.item_id ?? currentEditingItem.rowid ?? 0;
 			const params = new URLSearchParams();
 			params.append("line_id", lineId);
+			params.append("sale_id", new URLSearchParams(window.location.search).get("sale_id") || "");
 			params.append("quantity", quantity);
 			params.append("unit", unit);
 			params.append("price", price);
@@ -876,7 +891,11 @@ const SalesRegister = ({
 
 			try {
 				// Use encodeURIComponent to guard against unexpected characters
-				await axios.get(`${BASE_URL}/${controller_name}/deleteItem/${encodeURIComponent(id)}`);
+				const saleId = new URLSearchParams(window.location.search).get("sale_id");
+				const deleteUrl = saleId 
+					? `${BASE_URL}/${controller_name}/deleteItem/${encodeURIComponent(id)}?sale_id=${encodeURIComponent(saleId)}`
+					: `${BASE_URL}/${controller_name}/deleteItem/${encodeURIComponent(id)}`;
+				await axios.get(deleteUrl);
 				await refreshCartData();
 				showNotification("Item removed from cart", "success");
 			} catch (error) {
