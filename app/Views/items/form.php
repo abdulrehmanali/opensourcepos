@@ -175,6 +175,9 @@
               <span class="input-group-addon input-sm"><b><?= esc($config['currency_symbol']) ?></b></span>
             <?php endif; ?>
           </div>
+          <small id="profit_percentage" class="form-text text-muted">
+            <?= !empty($profit_percentage) ? "Profit: $profit_percentage" : '' ?>
+          </small>
         </div>
       </div>
       <?php
@@ -1159,28 +1162,72 @@
       }
 
       function updateAutoNameIfEmpty() {
-        // if (nameInput.value && nameInput.value.trim() !== '') return;
+        var desired_order = [
+          'category',
+          'Brand',
+          'Engine Oil / Description',
+          'API Grade',
+          'API',
+          'Made In',
+          'Part Number',
+          'OEM Part Number',
+          'Ref Part Number',
+          'Ref Part Number 2',
+          'VISCOSITY / SAE',
+          'Single Unit'
+        ];
+
         var parts = [];
-        var cat = firstCategoryText(); if (cat) parts.push(cat);
-        var brand = attributeValueByLabelRegex(/brand/i); if (brand) parts.push(brand);
-        var eng_oil_des = attributeValueByLabelRegex(/engine\s*oil/i); if (eng_oil_des) parts.push(eng_oil_des);
-        var made = attributeValueByLabelRegex(/made/i); if (made) parts.push(made);
-        var partNum = attributeValueByLabelRegex(/part\s*number/i) || attributeValueByLabelRegex(/ref\s*part/i);
-        if (partNum) parts.push(partNum);
+        
+        for (var i = 0; i < desired_order.length; i++) {
+          var label = desired_order[i];
+          var value = '';
+          
+          if (label === 'category') {
+            value = firstCategoryText();
+          } else if (label === 'Single Unit') {
+            // Get the single unit quantity and pack name
+            var qtyEl = document.querySelector('input[name="single_unit_quantity"]');
+            var packEl = document.querySelector('select[name="pack_name"]');
+            if (qtyEl && packEl) {
+              var qty = (qtyEl.value || '').trim();
+              var packName = packEl.options[packEl.selectedIndex] ? (packEl.options[packEl.selectedIndex].text || packEl.value) : '';
+              if (qty) {
+                value = qty + ' ' + (packName || 'unit');
+              }
+            }
+          } else {
+            // Search for attribute with exact or partial match
+            value = attributeValueByLabelRegex(new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
+          }
+          
+          if (value) {
+            parts.push(value);
+          }
+        }
+        
         var newName = parts.filter(Boolean).join(' - ');
         if (newName) nameInput.value = newName;
       }
 
-      // initial
-      updateAutoNameIfEmpty();
+      setTimeout(function() {
+        updateAutoNameIfEmpty();
+      }, 500);
 
       if ($) {
         $(document).on('change input', 'select[name="category[]"], [data-definition-label]', updateAutoNameIfEmpty);
+        // Also update when single unit quantity or pack name changes
+        $(document).on('change input', 'input[name="single_unit_quantity"], select[name="pack_name"]', updateAutoNameIfEmpty);
       } else {
         var catEl = document.querySelector('select[name="category[]"]');
         if (catEl) catEl.addEventListener('change', updateAutoNameIfEmpty);
         var attrEls = document.querySelectorAll('[data-definition-label]');
         attrEls.forEach(function(el) { el.addEventListener('change', updateAutoNameIfEmpty); el.addEventListener('input', updateAutoNameIfEmpty); });
+        // Also update when single unit quantity or pack name changes
+        var singleUnitQtyEl = document.querySelector('input[name="single_unit_quantity"]');
+        var packNameEl = document.querySelector('select[name="pack_name"]');
+        if (singleUnitQtyEl) { singleUnitQtyEl.addEventListener('change', updateAutoNameIfEmpty); singleUnitQtyEl.addEventListener('input', updateAutoNameIfEmpty); }
+        if (packNameEl) packNameEl.addEventListener('change', updateAutoNameIfEmpty);
       }
 
       // Per-unit helper: show per-unit price based on unit_price / qty_per_pack and selected pack_name
@@ -1188,6 +1235,8 @@
       const qtyPerPackInput = document.querySelector('input[name="qty_per_pack"]');
       const unitSelect = document.querySelector('select[name="pack_name"]');
       const helper = document.getElementById("per_unit_price");
+      const costPriceInput = document.querySelector('input[name="cost_price"]');
+      const profitHelper = document.getElementById("profit_percentage");
 
       if (unitPriceInput && qtyPerPackInput && unitSelect && helper) {
         function updateHelper() {
@@ -1208,6 +1257,34 @@
         unitSelect.addEventListener("change", updateHelper);
 
         updateHelper();
-    }
+      }
+
+      // Profit percentage helper: show profit margin based on cost_price and unit_price
+      if (costPriceInput && unitPriceInput && profitHelper) {
+        function updateProfitPercentage() {
+          const cost = parseFloat(costPriceInput.value.replace(/,/g, '')) || 0;
+          const price = parseFloat(unitPriceInput.value.replace(/,/g, '')) || 0;
+
+          if (cost > 0) {
+            const profit = ((price - cost) / cost) * 100;
+            profitHelper.textContent = 'Profit: ' + profit.toFixed(2) + '%';
+            // Color coding: green for positive profit, red for loss
+            if (profit > 0) {
+              profitHelper.style.color = '#28a745';
+            } else if (profit < 0) {
+              profitHelper.style.color = '#dc3545';
+            } else {
+              profitHelper.style.color = '#666';
+            }
+          } else {
+            profitHelper.textContent = '';
+          }
+        }
+
+        costPriceInput.addEventListener("input", updateProfitPercentage);
+        unitPriceInput.addEventListener("input", updateProfitPercentage);
+
+        updateProfitPercentage();
+      }
 </script>
 <?= view('partial/footer') ?>

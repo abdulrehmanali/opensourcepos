@@ -35,11 +35,6 @@ function transform_headers(array $headers, bool $readonly = false, bool $editabl
 {
     $result = [];
 
-    if(!$readonly)
-    {
-        $headers = array_merge ([['checkbox' => 'select', 'sortable' => false]], $headers);
-    }
-
     if($editable)
     {
         $headers[] = ['edit' => ''];

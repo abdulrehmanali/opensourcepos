@@ -132,11 +132,19 @@ class Sales extends Secure_Controller
    */
   public function getSearch(): void
   {
-    $search = $this->request->getGet('search', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $search_sale_id = $this->request->getGet('search_sale_id', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $search_vehicle_no = $this->request->getGet('search_vehicle_no', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $search_item_name = $this->request->getGet('search_item_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $search_customer_name = $this->request->getGet('search_customer_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $search_customer_phone = $this->request->getGet('search_customer_phone', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+    $summary_view = $this->request->getGet('summary_view', FILTER_SANITIZE_NUMBER_INT) ?? 1;
     $limit = $this->request->getGet('limit', FILTER_SANITIZE_NUMBER_INT);
     $offset = $this->request->getGet('offset', FILTER_SANITIZE_NUMBER_INT);
     $sort = $this->sanitizeSortColumn(sales_headers(), $this->request->getGet('sort', FILTER_SANITIZE_FULL_SPECIAL_CHARS), 'sale_id');
     $order = $this->request->getGet('order', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+
+    // Keep backward compatibility with combined search if provided
+    $search = $this->request->getGet('search', FILTER_SANITIZE_FULL_SPECIAL_CHARS) ?? '';
 
     $filters = [
       'sale_type' => 'all',
@@ -149,7 +157,12 @@ class Sales extends Secure_Controller
       'selected_customer' => false,
       'only_creditcard' => false,
       'only_invoices' => $this->config['invoice_enable'] && $this->request->getGet('only_invoices', FILTER_SANITIZE_NUMBER_INT),
-      'is_valid_receipt' => $this->sale->is_valid_receipt($search)
+      'is_valid_receipt' => $this->sale->is_valid_receipt($search),
+      'search_sale_id' => $search_sale_id,
+      'search_vehicle_no' => $search_vehicle_no,
+      'search_item_name' => $search_item_name,
+      'search_customer_name' => $search_customer_name,
+      'search_customer_phone' => $search_customer_phone
     ];
 
     // check if any filter is set in the multiselect dropdown
@@ -162,15 +175,54 @@ class Sales extends Secure_Controller
     $payment_summary = get_sales_manage_payments_summary($payments);
 
     $data_rows = [];
-    foreach ($sales->getResult() as $sale) {
-      $data_rows[] = get_sale_data_row($sale);
+    $headers = [];
+    
+    if ($summary_view == 1) {
+      // Summary view - one row per sale (original format)
+      foreach ($sales->getResult() as $sale) {
+        $data_rows[] = get_sale_data_row($sale);
+      }
+      if ($total_rows > 0) {
+        $data_rows[] = get_sale_data_last_row($sales);
+      }
+      // Return original headers for summary view - decode JSON string to array
+      $headers = json_decode(get_sales_manage_table_headers(), true);
+    } else {
+      // Detail view - one row per sale item
+      foreach ($sales->getResult() as $sale) {
+        // Get items for this sale
+        $sale_items_result = $this->db->table('sales_items')
+          ->select('sales_items.*, items.name')
+          ->join('items', 'sales_items.item_id = items.item_id', 'LEFT')
+          ->where('sales_items.sale_id', $sale->sale_id)
+          ->get();
+        
+        foreach ($sale_items_result->getResult() as $item) {
+          $data_rows[] = [
+            'row_id' => $sale->sale_id . '_' . $item->line,
+            'sale_id' => $sale->sale_id,
+            'name' => $item->name,
+            'quantity_purchased' => $item->quantity_purchased,
+            'item_unit_price' => $item->item_unit_price,
+            'customer_name' => $sale->customer_name,
+            'phone_number' => $sale->phone_number ?? '',
+            'sale_date' => $sale->sale_date
+          ];
+        }
+      }
+      // Return detail headers for detail view
+      $headers = [
+        ['title' => lang('Sales.sale_id'), 'field' => 'sale_id', 'sortable' => true],
+        ['title' => lang('Sales.item'), 'field' => 'name', 'sortable' => false],
+        ['title' => lang('Sales.quantity'), 'field' => 'quantity_purchased', 'sortable' => false, 'align' => 'right'],
+        ['title' => lang('Sales.price'), 'field' => 'item_unit_price', 'sortable' => false, 'align' => 'right'],
+        ['title' => lang('Sales.customer'), 'field' => 'customer_name', 'sortable' => false],
+        ['title' => lang('Sales.phone'), 'field' => 'phone_number', 'sortable' => false],
+        ['title' => lang('Sales.date'), 'field' => 'sale_date', 'sortable' => true]
+      ];
     }
 
-    if ($total_rows > 0) {
-      $data_rows[] = get_sale_data_last_row($sales);
-    }
-
-    echo json_encode(['total' => $total_rows, 'rows' => $data_rows, 'payment_summary' => $payment_summary]);
+    echo json_encode(['total' => $total_rows, 'rows' => $data_rows, 'payment_summary' => $summary_view == 1 ? $payment_summary : '', 'headers' => $headers]);
   }
 
   /**
@@ -181,19 +233,80 @@ class Sales extends Secure_Controller
    */
   public function getItemSearch(): void
   {
-    $suggestions = [];
-    $receipt = $search = $this->request->getGet('term') != ''
-      ? $this->request->getGet('term')
-      : null;
+      $suggestions = [];
+      $receipt = $search = $this->request->getGet('term') != ''
+        ? $this->request->getGet('term')
+        : null;
+      
+      // Get optional category filter
+      $category = $this->request->getGet('category') != ''
+        ? $this->request->getGet('category')
+        : null;
 
-    if ($this->sale_lib->get_mode() == 'return' && $this->sale->is_valid_receipt($receipt)) {
-      // if a valid receipt or invoice was found the search term will be replaced with a receipt number (POS #)
-      $suggestions[] = $receipt;
-    }
-    $suggestions = array_merge($suggestions, $this->item->get_search_suggestions($search, ['search_custom' => false, 'is_deleted' => 0], true));
-    $suggestions = array_merge($suggestions, $this->item_kit->get_search_suggestions($search));
+      // Get optional customer ID
+      $customer_id = $this->request->getGet('customerId', FILTER_SANITIZE_NUMBER_INT) ?? null;
 
-    echo json_encode($suggestions);
+      if ($this->sale_lib->get_mode() == 'return' && $this->sale->is_valid_receipt($receipt)) {
+        // if a valid receipt or invoice was found the search term will be replaced with a receipt number (POS #)
+        $suggestions[] = $receipt;
+      }
+      
+      // Pass category to item search
+      $filters = ['search_custom' => false, 'is_deleted' => 0];
+      if ($category) {
+        $filters['category'] = $category;
+      }
+      
+      $suggestions = array_merge($suggestions, $this->item->get_search_suggestions($search, $filters, true));
+      $suggestions = array_merge($suggestions, $this->item_kit->get_search_suggestions($search));
+
+      // If customer ID is provided, get last sale price for each item
+      if ($customer_id && $customer_id != -1) {
+        $suggestions = array_map(function($suggestion) use ($customer_id) {
+          // Get the item ID from the suggestion
+          $item_id = null;
+          
+          // If suggestion is an object, get item_id
+          if (is_object($suggestion)) {
+            $item_id = $suggestion->value ?? null;
+          } elseif (is_array($suggestion)) {
+            $item_id = $suggestion['value'] ?? null;
+          }
+
+          if ($item_id) {
+            // Query the last sale price and quantity for this item and customer
+            $last_sale = $this->db->table('sales_items si')
+              ->select('si.item_unit_price, si.quantity_purchased')
+              ->join('sales s', 's.sale_id = si.sale_id')
+              ->where('si.item_id', $item_id)
+              ->where('s.customer_id', $customer_id)
+              ->orderBy('s.sale_time', 'DESC')
+              ->limit(1)
+              ->get()
+              ->getRow();
+
+            if ($last_sale) {
+              // Calculate last sale total price (unit_price * quantity)
+              $last_total_price = $last_sale->item_unit_price * $last_sale->quantity_purchased;
+              
+              // Add last sale price and calculated total to suggestion
+              if (is_object($suggestion)) {
+                $suggestion->last_sale_price = $last_sale->item_unit_price;
+                $suggestion->last_sale_quantity = $last_sale->quantity_purchased;
+                $suggestion->last_sale_total = $last_total_price;
+              } elseif (is_array($suggestion)) {
+                $suggestion['last_sale_price'] = $last_sale->item_unit_price;
+                $suggestion['last_sale_quantity'] = $last_sale->quantity_purchased;
+                $suggestion['last_sale_total'] = $last_total_price;
+              }
+            }
+          }
+
+          return $suggestion;
+        }, $suggestions);
+      }
+
+      echo json_encode($suggestions);
   }
 
   /**
@@ -400,11 +513,34 @@ class Sales extends Secure_Controller
       $this->sale->update($sale_id, $update_data);
     }
     
-    // Save payment if provided
+    // Save payment if provided - insert directly into database
     if($payment_type && $payment_amount !== null && $payment_amount > 0) {
       try {
-        // Create a payment entry using sale_lib
-        $this->sale_lib->add_payment($payment_type, (float)$payment_amount);
+        // Check if payment type already exists for this sale
+        $existing_payment = $this->db->table('sales_payments')
+          ->where('sale_id', (int)$sale_id)
+          ->where('payment_type', $payment_type)
+          ->get()
+          ->getRow();
+        
+        if($existing_payment) {
+          // Update existing payment
+          $this->db->table('sales_payments')
+            ->where('payment_id', $existing_payment->payment_id)
+            ->update([
+              'payment_amount' => (float)$payment_amount,
+              'payment_time' => date('Y-m-d H:i:s')
+            ]);
+        } else {
+          // Insert new payment
+          $payment_data = [
+            'sale_id' => (int)$sale_id,
+            'payment_type' => $payment_type,
+            'payment_amount' => (float)$payment_amount,
+            'payment_time' => date('Y-m-d H:i:s')
+          ];
+          $this->db->table('sales_payments')->insert($payment_data);
+        }
       } catch (\Exception $e) {
         // Log error but don't block the save
         log_message('error', 'Payment save error: ' . $e->getMessage());
@@ -1062,7 +1198,8 @@ class Sales extends Secure_Controller
           'item_unit_price' => $unit_price,
           'discount' => $discount,
           'discount_type' => $discount_type,
-          'description' => $item->description
+          'description' => $item->description,
+          'item_location' => $item_location
         ];
         
         if($this->db->table('sales_items')->insert($insert_data)) {
@@ -2117,6 +2254,14 @@ class Sales extends Secure_Controller
       if ($vehicle) {
         $data['selected_vehicle_no'] = $vehicle->vehicle_no ?? '';
       }
+    }
+
+    // Fetch and pass categories to React component
+    $distinctCategories = $this->db->table('item_categories')->select('name')->distinct()->get()->getResultArray();
+    $distinctCategories = array_column($distinctCategories, 'name');
+    $data['categories'] = [];
+    foreach ($distinctCategories as $value) {
+      $data['categories'][$value] = $value;
     }
 
     echo view("sales/register", $data);

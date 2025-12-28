@@ -12,9 +12,10 @@ const SalesRegister = ({
 	config = {},
 	selected_vehicle_id = null,
 	selected_vehicle_no = "",
+	categories = {},
 }) => {
-	const BASE_URL = "http://localhost/public";
-	console.log(customer_id);
+	// const BASE_URL = "http://localhost/public";
+  const BASE_URL =  "http://localhost:8888/opensourcepos/public";
 	// State management
 	const [vehicleNo, setVehicleNo] = useState(selected_vehicle_no || "");
 	const [customerName, setCustomerName] = useState("");
@@ -39,7 +40,12 @@ const SalesRegister = ({
 	const [price, setPrice] = useState("0.00");
 	const [discount, setDiscount] = useState("0.00");
 	const [discountToggle, setDiscountToggle] = useState(false);
+	const [lastSalePrice, setLastSalePrice] = useState("");
+	const [lastSaleQuantity, setLastSaleQuantity] = useState("");
+	const [lastSaleTotal, setLastSaleTotal] = useState("");
 	const [comment, setComment] = useState("");
+	const [selectedCategory, setSelectedCategory] = useState("");
+	const [categoriesList] = useState(categories);
 
 	// Edit item state - track if we're editing and which item
 	const [isEditingItem, setIsEditingItem] = useState(false);
@@ -60,7 +66,15 @@ const SalesRegister = ({
 	const lastLoadedVehicleNo = useRef(null);
 	// selected_vehicle_id is available via props and used below if needed
 
-	console.log(vehicleNo);
+	// Global tabIndex counter
+	let tabIndexCounter = 0;
+	const getNextTabIndex = () => {
+		return ++tabIndexCounter;
+	};
+
+  useEffect(() => {
+    console.log("Price changed:", price);
+  }, [price]);
 	// Utility Functions
 	const typewatch = useCallback((callback, ms, key = "default") => {
 		if (typeWatchTimeouts.current[key]) {
@@ -162,7 +176,6 @@ const SalesRegister = ({
 								Accept: "application/json",
 							},
 						});
-						console.log("Load Vehicle Response:", response.data);
 						if (response.data.success && response.data.vehicle) {
 							const vehicle = response.data.vehicle;
 							console.log("Vehicle Data:", vehicle);
@@ -326,27 +339,32 @@ const SalesRegister = ({
 		async (term) => {
 			try {
 				const response = await axios.get(`${BASE_URL}/${controller_name}/itemSearch`, {
-					params: { term },
+					params: { term, category: selectedCategory, customerId: currentCustomerId },
 				});
 				return response.data;
 			} catch (error) {
 				return [];
 			}
 		},
-		[controller_name]
+		[controller_name, selectedCategory, currentCustomerId]
 	);
 
 	// Event Handlers
 	const handleItemSelect = useCallback((item) => {
 		// Accept item object with possible id, label and pricing info
 		if (item && item.id) setItemId(item.id);
+    console.log("Selected item:", item);
 		setItemSearch(item.label);
 		setSelectedItemRaw(item.raw ?? item);
-		setBasePrice(parseFloat(item.price) || 0);
-		setBaseQuantity(parseFloat(item.single_unit_quantity) || 1);
-		setPrice(item.price || "0.00");
-		setQuantity(item.single_unit_quantity || "1");
-		setUnit(item.pack_name || "pcs");
+		setBasePrice(parseFloat(item?.cost_price?.replace(/,/g, '')) || 0);
+		setBaseQuantity(1);
+		setPrice(parseFloat(item?.price?.replace(/,/g, '')) || "0.00");
+		setQuantity("1");
+		setUnit("pcs");
+		// Set last sale price if available
+		setLastSalePrice(item.last_sale_price || "");
+		setLastSaleQuantity(item.last_sale_quantity || "");
+		setLastSaleTotal(item.last_sale_total || "");
 	}, []);
 
 	const handleQuantityChange = useCallback(
@@ -364,26 +382,26 @@ const SalesRegister = ({
 	// Recompute price when unit changes: if the selected unit is the pack
 	// (pack_name/unit_name) then use the pack price, otherwise use the
 	// per-single-unit price derived from basePrice/baseQuantity.
-	useEffect(() => {
-		const qty = parseFloat(quantity) || 1;
-		const bPrice = parseFloat(basePrice) || 0;
-		const bQty = parseFloat(baseQuantity) || 1;
+	// useEffect(() => {
+	// 	const qty = parseFloat(quantity) || 1;
+	// 	const bPrice = parseFloat(basePrice) || 0;
+	// 	const bQty = parseFloat(baseQuantity) || 1;
 
-		// price per single unit
-		const perSingle = bQty > 0 ? bPrice / bQty : bPrice;
+	// 	// price per single unit
+	// 	const perSingle = bQty > 0 ? bPrice / bQty : bPrice;
 
-		let perSelectedUnit = perSingle;
-		if (selectedItemRaw) {
-			const packName = selectedItemRaw.pack_name ?? selectedItemRaw.unit_name ?? "";
-			if (unit && packName && unit === packName) {
-				// use pack price as the price for the selected unit
-				perSelectedUnit = bPrice;
-			}
-		}
+	// 	let perSelectedUnit = perSingle;
+	// 	if (selectedItemRaw) {
+	// 		const packName = selectedItemRaw.pack_name ?? selectedItemRaw.unit_name ?? "";
+	// 		if (unit && packName && unit === packName) {
+	// 			// use pack price as the price for the selected unit
+	// 			perSelectedUnit = bPrice;
+	// 		}
+	// 	}
 
-		const total = perSelectedUnit * qty;
-		setPrice(total.toFixed(2));
-	}, [unit, basePrice, baseQuantity, quantity, selectedItemRaw]);
+	// 	const total = perSelectedUnit * qty;
+	// 	setPrice(total.toFixed(2));
+	// }, [unit, basePrice, baseQuantity, quantity, selectedItemRaw]);
 
 	const handleVehicleNoChange = useCallback(
 		(value) => {
@@ -774,6 +792,9 @@ const SalesRegister = ({
 		setDiscountToggle(false);
 		setItemSearch("");
 		setItemId("");
+		setLastSalePrice("");
+		setLastSaleQuantity("");
+		setLastSaleTotal("");
 	}, []);
 
 	const handleSaveEditItem = useCallback(
@@ -1003,11 +1024,12 @@ const SalesRegister = ({
 	);
 
 	const handleEditItem = useCallback((item) => {
+    console.log("Editing item:", item);
 		setCurrentEditingItem(item);
 		setIsEditingItem(true);
-		setQuantity(String(item.quantity ?? item.quantity_purchased ?? "1"));
+		setQuantity(String(item.quantity ?? "1"));
 		setUnit(item.unit ?? "pcs");
-		setPrice(String(item.price ?? item.item_unit_price ?? item.unit_price ?? "0.00"));
+		setPrice(item.price ?? "0.00");
 		setDiscount(String(item.discount ?? "0.00"));
 		setDiscountToggle(item.discount_type === "fixed" || false);
 	}, []);
@@ -1397,7 +1419,8 @@ const SalesRegister = ({
 						handleItemSelect({
 							id: sel.id,
 							label: sel.label,
-							price: payload.price ?? payload.unit_price ?? payload.cost ?? "0.00",
+              cost_price: payload.cost_price ?? "",
+							price: payload.price,
 							single_unit_quantity: payload.single_unit_quantity ?? 1,
 							pack_name: payload.pack_name ?? payload.unit_name ?? "pcs",
 						});
@@ -1423,9 +1446,13 @@ const SalesRegister = ({
 			handleItemSelect({
 				id: sel.id,
 				label: sel.label,
-				price: payload.price ?? payload.unit_price ?? payload.cost ?? "0.00",
+        cost_price: payload.cost_price ?? "",
+				price: payload.price,
 				single_unit_quantity: payload.single_unit_quantity ?? 1,
 				pack_name: payload.pack_name ?? payload.unit_name ?? "pcs",
+				last_sale_price: payload.last_sale_price ?? "",
+				last_sale_quantity: payload.last_sale_quantity ?? "",
+				last_sale_total: payload.last_sale_total ?? "",
 			});
 			setSelectedItemRaw(payload);
 			setItemSearch(sel.label);
@@ -1468,17 +1495,27 @@ const SalesRegister = ({
 					</div>
 				))}
 			</div>
-
 			<div className="row">
 				<div id="register_wrapper" className="col-sm-7">
-					{/* Mode selection form would go here */}
-					{/* Customer and Vehicle Info */}
 					<div className="panel-body">
-						<div className="row">
-							<div className="col-sm-3">
-								<div className="form-group form-group-sm">
-									<label className="required control-label" style={{ width: "100%" }}>
-										Vehicle No
+            <div className="row">
+              <div className="col-sm-4">
+								<div className="form-group d-flex">
+									<label className="control-label" style={{minWidth:'80px'}}>
+										Mechanic
+									</label>
+									<input
+										type="text"
+										className="form-control input-sm"
+										value={mechanicName}
+										onChange={(e) => setMechanicName(e.target.value)}
+										placeholder="Enter mechanic name"
+										tabIndex={getNextTabIndex()}
+									/>
+								</div>
+                <div className="form-group d-flex">
+									<label className="control-label" style={{minWidth:'80px'}}>
+										Vehicle #
 									</label>
 									<select
 										id="vehicle_no"
@@ -1486,7 +1523,7 @@ const SalesRegister = ({
 										className="form-control input-sm"
 										value={vehicleNo}
 										onChange={(e) => handleVehicleNoChange(e.target.value.toUpperCase())}
-										tabIndex="1"
+										tabIndex={getNextTabIndex()}
 									>
 										<option value="">{""}</option>
 										{/* If vehicleNo is set but Select2/jQuery isn't present, render
@@ -1494,50 +1531,8 @@ const SalesRegister = ({
 										{vehicleNo && <option value={vehicleNo}>{vehicleNo}</option>}
 									</select>
 								</div>
-							</div>
-							<div className="col-sm-3">
-								<div className="form-group form-group-sm">
-									<label className="required control-label" style={{ width: "100%" }}>
-										Customer Name
-									</label>
-									<select
-										id="customer_name"
-										ref={customerNameRef}
-										className="form-control input-sm"
-										value={customerName}
-										onChange={(e) => setCustomerName(e.target.value)}
-										tabIndex="2"
-									>
-										<option value="">{""}</option>
-										{/* Ensure the select can display the initial customer name when
-                        Select2/jQuery isn't present by rendering a matching option */}
-										{customerName && <option value={customerName}>{customerName}</option>}
-									</select>
-								</div>
-							</div>
-							<div className="col-sm-3">
-								<div className="form-group form-group-sm">
-									<label className="required control-label" style={{ width: "100%" }}>
-										Phone Number
-									</label>
-									<select
-										id="phone_number"
-										ref={phoneInputRef}
-										className="form-control input-sm"
-										value={phoneNumber}
-										onChange={(e) => handlePhoneNumberChange(e.target.value)}
-										tabIndex="3"
-									>
-										<option value="">{""}</option>
-										{/* Add an option for the current phoneNumber so the select shows
-                        the value when Select2 isn't available */}
-										{phoneNumber && <option value={phoneNumber}>{phoneNumber}</option>}
-									</select>
-								</div>
-							</div>
-							<div className="col-sm-3">
-								<div className="form-group form-group-sm">
-									<label className="control-label" style={{ width: "100%" }}>
+                <div className="form-group d-flex">
+									<label className="control-label" style={{minWidth:'80px'}}>
 										Kilometer
 									</label>
 									<input
@@ -1545,13 +1540,65 @@ const SalesRegister = ({
 										className="form-control input-sm"
 										value={vehicleKilometer}
 										onChange={(e) => setVehicleKilometer(e.target.value)}
-										tabIndex="4"
+										tabIndex={getNextTabIndex()}
 									/>
 								</div>
-							</div>
-							<div className="col-sm-3">
-								<div className="form-group form-group-sm">
-									<label className="control-label" style={{ width: "100%" }}>
+              </div>
+              <div className="col-sm-4">
+								<div className="form-group d-flex">
+									<label className="control-label" style={{minWidth:'80px'}}>
+										Customer
+									</label>
+									<select
+										id="customer_name"
+										ref={customerNameRef}
+										className="form-control input-sm"
+										value={customerName}
+										onChange={(e) => setCustomerName(e.target.value)}
+										tabIndex={getNextTabIndex()}
+									>
+										<option value="">{""}</option>
+										{/* Ensure the select can display the initial customer name when
+                        Select2/jQuery isn't present by rendering a matching option */}
+										{customerName && <option value={customerName}>{customerName}</option>}
+									</select>
+								</div>
+								<div className="form-group d-flex">
+									<label className="control-label" style={{minWidth:'80px'}}>
+										Phone #
+									</label>
+									<select
+										id="phone_number"
+										ref={phoneInputRef}
+										className="form-control input-sm"
+										value={phoneNumber}
+										onChange={(e) => handlePhoneNumberChange(e.target.value)}
+										tabIndex={getNextTabIndex()}
+									>
+										<option value="">{""}</option>
+										{/* Add an option for the current phoneNumber so the select shows
+                        the value when Select2 isn't available */}
+										{phoneNumber && <option value={phoneNumber}>{phoneNumber}</option>}
+									</select>
+								</div>
+                <div className="form-group d-flex">
+                  <label className="control-label" style={{minWidth:'80px'}}>
+                    Comments
+                  </label>
+                  <textarea
+                    className="form-control input-sm"
+                    rows="3"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Add any comments or notes"
+                    style={{ resize: "vertical" }}
+                    tabIndex={getNextTabIndex()}
+                  />
+                </div>
+              </div>
+              <div className="col-sm-4">
+								<div className="form-group d-flex">
+									<label className="control-label" style={{minWidth:'80px'}}>
 										Avg KM / Day
 									</label>
 									<input
@@ -1559,21 +1606,19 @@ const SalesRegister = ({
 										className="form-control input-sm"
 										value={vehicleAvgKmDay}
 										onChange={(e) => setVehicleAvgKmDay(e.target.value)}
-										tabIndex="6"
+										tabIndex={getNextTabIndex()}
 									/>
 								</div>
-							</div>
-							<div className="col-sm-3">
-								<div className="form-group form-group-sm">
-									<label className="control-label" style={{ width: "100%" }}>
-										Avg KM/ Oil
+                <div className="form-group d-flex">
+									<label className="control-label" style={{minWidth:'80px'}}>
+										Avg KM / Oil
 									</label>
 									<input
 										type="number"
 										className="form-control input-sm"
 										value={vehicleAvgOilKm}
 										onChange={(e) => setVehicleAvgOilKm(e.target.value)}
-										tabIndex="6"
+										tabIndex={getNextTabIndex()}
 									/>
 									{calculatedAvgPerDay && (
 										<div style={{ color: "#2F4F4F", fontSize: "12px", marginTop: "5px" }}>
@@ -1581,10 +1626,8 @@ const SalesRegister = ({
 										</div>
 									)}
 								</div>
-							</div>
-							<div className="col-sm-3">
-								<div className="form-group form-group-sm">
-									<label className="control-label" style={{ width: "100%" }}>
+                <div className="form-group d-flex">
+									<label className="control-label" style={{minWidth:'80px'}}>
 										Next Visit
 									</label>
 									<input
@@ -1597,98 +1640,62 @@ const SalesRegister = ({
 											maxDate.setDate(maxDate.getDate() + 180);
 											return maxDate.toISOString().split("T")[0];
 										})()}
-										tabIndex="7"
+										tabIndex={getNextTabIndex()}
 									/>
 								</div>
-							</div>
-							<div className="col-sm-3">
-								<div className="form-group form-group-sm">
-									<label className="control-label" style={{ width: "100%" }}>
-										Mechanic Name
-									</label>
-									<input
-										type="text"
-										className="form-control input-sm"
-										value={mechanicName}
-										onChange={(e) => setMechanicName(e.target.value)}
-										placeholder="Enter mechanic name"
-										tabIndex="8"
-									/>
-								</div>
-							</div>
-						</div>
-						<div className="form-group form-group-sm">
-							<label className="control-label" style={{ width: "100%" }}>
-								Comments
-							</label>
-							<textarea
-								className="form-control input-sm"
-								rows="3"
-								value={comment}
-								onChange={(e) => setComment(e.target.value)}
-								placeholder="Add any comments or notes"
-								style={{ resize: "vertical" }}
-							/>
-						</div>
-					</div>{" "}
+              </div>
+            </div>
+					</div>
+          <hr style={{margin:"0"}}/>
 					{/* Add Item Form */}
-					<form onSubmit={handleAddItem} className="form-horizontal panel panel-default">
+					<form onSubmit={handleAddItem} className="form-horizontal">
 						<div
-							className="panel-body row"
-							style={{ display: "flex", justifyContent: "center", alignItems: "end" }}
+							className="row"
+							style={{ display: "flex", justifyContent: "center", alignItems: "self-end", gap:12 }}
 						>
 							{isEditingItem && currentEditingItem ? (
 								// Edit mode
 								<>
-									<div className="col-sm-4" style={{ marginBottom: "1em" }}>
+									<div style={{ marginBottom: "1em" }}>
 										<h5 style={{ color: "#0066cc" }}>
 											Editing:
 											<br />
 											{currentEditingItem.name}
 										</h5>
 									</div>
-									<div className="col-sm-2">
+									<div>
 										<label className="control-label">Quantity</label>
 										<div className="input-group">
 											<input
-												tabIndex="9"
+												tabIndex={getNextTabIndex()}
 												type="number"
 												className="form-control input-sm"
 												value={quantity}
 												onChange={(e) => handleQuantityChange(e.target.value)}
 												required
 											/>
-											<span className="input-group-addon" style={{ padding: 0 }}>
-												<select
-													tabIndex="10"
-													className="form-control input-sm"
-													value={unit}
-													onChange={(e) => setUnit(e.target.value)}
-													style={{ width: "38px", padding: 0, height: "33px", border: 0 }}
-												>
-													<option value="pcs">pcs</option>
-													<option value="kg">kg</option>
-													<option value="ltr">ltr</option>
-													<option value="mL">mL</option>
-												</select>
-											</span>
+											<span className="input-group-addon" style={{ padding: "0 6px" }}>/pcs</span>
 										</div>
 									</div>
-									<div className="col-sm-2">
+									<div>
 										<label className="control-label">Price</label>
 										<input
 											type="number"
 											className="form-control input-sm"
 											value={price}
 											onChange={(e) => setPrice(e.target.value)}
-											step="0.01"
 											min="0"
 											required
-											tabIndex="11"
+											tabIndex={getNextTabIndex()}
 										/>
+										{lastSalePrice && (
+											<small style={{ color: "#666", display: "block", fontSize: "11px", marginBottom:"-19px" }}>
+												Rs {parseFloat(lastSalePrice).toFixed(2)}
+											</small>
+										)}
 									</div>
-									<div className="col-sm-2">
-										<label className="control-label">Discount</label>
+									<div>
+										{/* <label className="control-label">Discount</label> */}
 										<div className="input-group">
 											<input
 												type="text"
@@ -1696,7 +1703,7 @@ const SalesRegister = ({
 												value={discount}
 												onChange={(e) => setDiscount(e.target.value)}
 												onClick={(e) => e.target.select()}
-												tabIndex="12"
+												tabIndex={getNextTabIndex()}
 											/>
 											<span className="input-group-btn">
 												<input
@@ -1708,37 +1715,52 @@ const SalesRegister = ({
 													data-onstyle="success"
 													data-on="Rs"
 													data-off="%"
-													tabIndex="13"
+													tabIndex={getNextTabIndex()}
 												/>
 											</span>
 										</div>
 									</div>
-									<div className="col-sm-2">
+									<div>
 										<label className="control-label">&nbsp;</label>
-										<button type="submit" className="btn btn-success btn-sm" tabIndex="14">
-											<span className="glyphicon glyphicon-ok"></span> Save Changes
-										</button>
-									</div>
-									<div className="col-sm-2">
-										<label className="control-label">&nbsp;</label>
-										<button
-											type="button"
-											className="btn btn-danger btn-sm"
-											tabIndex="15"
-											onClick={cancelEditItem}
-										>
-											<span className="glyphicon glyphicon-remove"></span> Cancel
-										</button>
+                    <div style={{display:'flex', gap:6}}>
+                      <button type="submit" className="btn btn-success btn-sm" tabIndex={getNextTabIndex()}>
+                        <span className="glyphicon glyphicon-ok"></span>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm"
+                        tabIndex={getNextTabIndex()}
+                        onClick={cancelEditItem}
+                      >
+                        <span className="glyphicon glyphicon-remove"></span>
+                      </button>
+                    </div>
 									</div>
 								</>
 							) : (
 								// Add mode
 								<>
-									<div className="col-sm-4">
-										<label className="control-label">Product Name / Barcode</label>
+									<div style={{'flex':2}}>
+										<label className="control-label">Category</label>
+										<select
+											className="form-control input-sm"
+											value={selectedCategory}
+											onChange={(e) => setSelectedCategory(e.target.value)}
+											tabIndex={getNextTabIndex()}
+										>
+											<option value="">All Categories</option>
+											{categoriesList && Object.entries(categoriesList).map(([key, value]) => (
+												<option key={key} value={key}>
+													{value}
+												</option>
+											))}
+										</select>
+									</div>
+									<div style={{'flex':4, minWidth:'150px'}}>
+										<label className="control-label">Product Name</label>
 										<div ref={itemInputRef} style={{ position: "relative" }}>
 											<input
-												tabIndex="8"
+												tabIndex={getNextTabIndex()}
 												type="text"
 												className="form-control input-sm"
 												value={itemSearch}
@@ -1749,53 +1771,45 @@ const SalesRegister = ({
 												onKeyDown={onItemInputKeyDown}
 												aria-autocomplete="list"
 												aria-expanded={showItemSuggestions}
-												placeholder="Type product name or barcode"
+												placeholder="Type product name"
 												required
 											/>
 										</div>
 									</div>
-									<div className="col-sm-2">
+									<div style={{'flex':2, minWidth:'120px', maxWidth:'120px'}}>
 										<label className="control-label">Quantity</label>
 										<div className="input-group">
 											<input
-												tabIndex="9"
+												tabIndex={getNextTabIndex()}
 												type="number"
 												className="form-control input-sm"
 												value={quantity}
 												onChange={(e) => handleQuantityChange(e.target.value)}
 												min="1"
 												required
+                        style={{'padding':'6px 4px'}}
 											/>
-											<span className="input-group-addon" style={{ padding: 0 }}>
-												<select
-													tabIndex="10"
-													className="form-control input-sm"
-													value={unit}
-													onChange={(e) => setUnit(e.target.value)}
-													style={{ width: "45px", padding: 0, height: "33px", border: 0 }}
-												>
-													<option value="pcs">pcs</option>
-													<option value="kg">kg</option>
-													<option value="ltr">ltr</option>
-													<option value="mL">mL</option>
-												</select>
-											</span>
+											<span className="input-group-addon" style={{ padding: "0 6px" }}>/pcs</span>
 										</div>
 									</div>
-									<div className="col-sm-2">
+									<div style={{'flex':1, minWidth:'90px'}}>
 										<label className="control-label">Price</label>
 										<input
 											type="number"
 											className="form-control input-sm"
 											value={price}
 											onChange={(e) => setPrice(e.target.value)}
-											step="0.01"
 											min="0"
 											required
-											tabIndex="11"
+											tabIndex={getNextTabIndex()}
 										/>
+										{lastSalePrice && (
+											<small style={{ color: "#666", display: "block", marginBottom: "-16px", fontSize: "11px" }}>
+												Rs {parseFloat(lastSalePrice).toFixed(2)}
+											</small>
+										)}
 									</div>
-									<div className="col-sm-2">
+									<div style={{'flex':2, minWidth:'120px', maxWidth:'120px'}}>
 										<label className="control-label">Discount</label>
 										<div className="input-group">
 											<input
@@ -1804,7 +1818,7 @@ const SalesRegister = ({
 												value={discount}
 												onChange={(e) => setDiscount(e.target.value)}
 												onClick={(e) => e.target.select()}
-												tabIndex="12"
+												tabIndex={getNextTabIndex()}
 											/>
 											<span className="input-group-btn">
 												<input
@@ -1816,15 +1830,15 @@ const SalesRegister = ({
 													data-onstyle="success"
 													data-on="Rs"
 													data-off="%"
-													tabIndex="13"
+													tabIndex={getNextTabIndex()}
 												/>
 											</span>
 										</div>
 									</div>
-									<div className="col-sm-2">
+									<div style={{'flex':1, alignItems:'end', display:'flex'}}>
 										<label className="control-label">&nbsp;</label>
-										<button type="submit" className="btn btn-primary btn-sm" tabIndex="14">
-											<span className="glyphicon glyphicon-plus"></span> Add
+										<button type="submit" className="btn btn-primary btn-sm" tabIndex={getNextTabIndex()}>
+											<span className="glyphicon glyphicon-plus"></span>
 										</button>
 									</div>
 								</>
@@ -1844,8 +1858,8 @@ const SalesRegister = ({
 									backgroundColor: "#fff",
 									border: "1px solid #ddd",
 									borderRadius: "4px",
-									width: "96%",
-									margin: "0 16px",
+									width: "98%",
+									margin: "0 8px",
 								}}
 							>
 								<table
@@ -1857,26 +1871,8 @@ const SalesRegister = ({
 											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
 												Product
 											</th>
-											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
-												Category
-											</th>
-											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
-												Brand
-											</th>
-											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
-												Part No
-											</th>
-											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
-												OEM No
-											</th>
-											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
-												Make
-											</th>
-											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
-												Packing
-											</th>
-											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px" }}>
-												Weight
+											<th style={{ padding: "4px 6px", fontWeight: "600", fontSize: "10px", textAlign: "right" }}>
+											  PTC
 											</th>
 											<th
 												style={{
@@ -1895,24 +1891,32 @@ const SalesRegister = ({
 											const raw = sugg.raw || {};
 											const isHighlighted = idx === highlightedIndex;
 
-											// Parse attributes JSON
-											let attributeMap = {};
-											try {
-												if (typeof raw.attributes === "string") {
-													const parsed = JSON.parse(raw.attributes);
-													if (Array.isArray(parsed)) {
-														parsed.forEach((attr) => {
-															if (attr.name && attr.value) {
-																attributeMap[attr.name.toLowerCase()] = attr.value;
+										// Parse attributes string
+										let attributeMap = {};
+										try {
+											if (typeof raw.attributes === "string" && raw.attributes) {
+												// Handle pipe-separated format: "Brand:Value1|PartNo:Value2|..."
+												const pairs = raw.attributes.split("|");
+												pairs.forEach((pair) => {
+													if (pair.trim()) {
+														const colonIdx = pair.indexOf(":");
+														if (colonIdx > -1) {
+															const name = pair.substring(0, colonIdx).trim();
+															const value = pair.substring(colonIdx + 1).trim();
+															if (name) {
+																attributeMap[name.toLowerCase()] = value;
 															}
-														});
+														} else {
+															// Handle values without colon (e.g., "Made In", "Sub Category")
+															attributeMap[pair.trim().toLowerCase()] = "";
+														}
 													}
-												}
-											} catch {
-												// ignore parse errors
+												});
 											}
-
-											const getAttr = (names) => {
+										} catch {
+											// ignore parse errors
+										}
+                      const getAttr = (names) => {
 												for (const name of names) {
 													const key = name.toLowerCase();
 													if (attributeMap[key]) return attributeMap[key];
@@ -1931,7 +1935,7 @@ const SalesRegister = ({
 													style={{
 														cursor: "pointer",
 														backgroundColor: isHighlighted ? "#337ab7" : "transparent",
-														color: isHighlighted ? "#0000" : "#333",
+														color: isHighlighted ? "#000000ff" : "#666",
 													}}
 												>
 													<td
@@ -1939,72 +1943,23 @@ const SalesRegister = ({
 															padding: "4px 6px",
 															fontSize: "11px",
 															fontWeight: "500",
+                              color: isHighlighted ? "#000000ff" : "#666",
 														}}
 													>
 														{sugg.label}
 													</td>
-													<td
+                          <td
 														style={{
 															padding: "4px 6px",
-															fontSize: "10px",
-															color: isHighlighted ? "#fff" : "#666",
+															fontSize: "11px",
+															textAlign: "right",
+															fontWeight: "500",
+                              color: isHighlighted ? "#000000ff" : "#666",
 														}}
 													>
-														{raw.category || "-"}
-													</td>
-													<td
-														style={{
-															padding: "4px 6px",
-															fontSize: "10px",
-															color: isHighlighted ? "#fff" : "#666",
-														}}
-													>
-														{getAttr(["brand"])}
-													</td>
-													<td
-														style={{
-															padding: "4px 6px",
-															fontSize: "10px",
-															color: isHighlighted ? "#fff" : "#666",
-														}}
-													>
-														{getAttr(["part number", "part no"])}
-													</td>
-													<td
-														style={{
-															padding: "4px 6px",
-															fontSize: "10px",
-															color: isHighlighted ? "#fff" : "#666",
-														}}
-													>
-														{getAttr(["oem part number", "oem no"])}
-													</td>
-													<td
-														style={{
-															padding: "4px 6px",
-															fontSize: "10px",
-															color: isHighlighted ? "#fff" : "#666",
-														}}
-													>
-														{getAttr(["made in", "make"])}
-													</td>
-													<td
-														style={{
-															padding: "4px 6px",
-															fontSize: "10px",
-															color: isHighlighted ? "#fff" : "#666",
-														}}
-													>
-														{raw.pack_name || "-"}
-													</td>
-													<td
-														style={{
-															padding: "4px 6px",
-															fontSize: "10px",
-															color: isHighlighted ? "#fff" : "#666",
-														}}
-													>
-														{getAttr(["weight"])}
+														{raw.cost_price
+															? parseFloat(raw.cost_price.replace(/,/g, '')).toFixed(2)
+															: "-"}
 													</td>
 													<td
 														style={{
@@ -2012,12 +1967,11 @@ const SalesRegister = ({
 															fontSize: "11px",
 															textAlign: "right",
 															fontWeight: "500",
+                              color: isHighlighted ? "#000000ff" : "#666",
 														}}
 													>
-														{raw.price ?? raw.unit_price ?? raw.cost
-															? parseFloat(
-																	raw.price ?? raw.unit_price ?? raw.cost
-															  ).toFixed(2)
+														{raw.price
+															? parseFloat(raw.price.replace(/,/g, '')).toFixed(2)
 															: "-"}
 													</td>
 												</tr>
@@ -2208,7 +2162,6 @@ const SalesRegister = ({
 													<input
 														type="number"
 														min="0"
-														step="0.01"
 														className="form-control input-sm"
 														placeholder={label}
 														value={paymentInputs[key] ?? ""}
@@ -2224,6 +2177,7 @@ const SalesRegister = ({
 																? "Cash is auto-calculated based on total and other payments"
 																: ""
 														}
+                            tabIndex={getNextTabIndex()}
 													/>
 												</div>
 											);
@@ -2264,7 +2218,7 @@ const SalesRegister = ({
 						<div className="panel-body">
 							<button
 								className="btn btn-sm btn-success pull-right"
-								tabIndex="14"
+								tabIndex={getNextTabIndex()}
 								onClick={handleFinishSale}
 							>
 								<span className="glyphicon glyphicon-ok">&nbsp;</span>

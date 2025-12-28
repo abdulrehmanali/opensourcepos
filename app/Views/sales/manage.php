@@ -12,50 +12,258 @@
 <script type="application/javascript">
 $(document).ready(function()
 {
-    // when any filter is clicked and the dropdown window is closed
-    $('#filters').on('hidden.bs.select', function(e) {
-        table_support.refresh();
-    });
+    var currentHeaders = <?= $table_headers ?>;
+    var isSummaryView = true;
 
     // load the preset datarange picker
     <?= view('partial/daterangepicker') ?>
 
-    $("#daterangepicker").on('apply.daterangepicker', function(ev, picker) {
-        table_support.refresh();
-    });
-
-    <?= view('partial/bootstrap_tables_locale') ?>
-
-    table_support.query_params = function()
-    {
+    function getQueryParams() {
         return {
+            "search_sale_id": $("#search_sale_id").val(),
+            "search_vehicle_no": $("#search_vehicle_no").val(),
+            "search_item_name": $("#search_item_name").val(),
+            "search_customer_name": $("#search_customer_name").val(),
+            "search_customer_phone": $("#search_customer_phone").val(),
+            "summary_view": $("#summary_view").is(':checked') ? 1 : 0,
             "start_date": start_date,
             "end_date": end_date,
             "filters": $("#filters").val()
         }
-    };
+    }
 
-    table_support.init({
-        resource: '<?= esc($controller_name) ?>',
-        headers: <?= $table_headers ?>,
-        pageSize: <?= $config['lines_per_page'] ?>,
-        uniqueId: 'sale_id',
-        onLoadSuccess: function(response) {
-            if($("#table tbody tr").length > 1) {
-                $("#payment_summary").html(response.payment_summary);
-                $("#table tbody tr:last td:first").html("");
-                $("#table tbody tr:last").css('font-weight', 'bold');
-            }
-        },
-        queryParams: function() {
-            return $.extend(arguments[0], table_support.query_params());
-        },
-        columns: {
-            'invoice': {
-                align: 'center'
-            }
+    function buildTableHead() {
+        var headers = currentHeaders;
+        if(!isSummaryView) {
+            headers = [
+                {title: '<?= lang('ID') ?>', field: 'sale_id'},
+                {title: '<?= lang('Item Name') ?>', field: 'name'},
+                {title: '<?= lang('Sales.quantity') ?>', field: 'quantity_purchased'},
+                {title: '<?= lang('Sales.price') ?>', field: 'item_unit_price'},
+                {title: '<?= lang('Sales.customer') ?>', field: 'customer_name'},
+                {title: '<?= lang('Phone Number') ?>', field: 'phone_number'},
+                {title: '<?= lang('Sales.date') ?>', field: 'sale_date'}
+            ];
         }
+        
+        var thead = '<thead><tr>';
+        // Add checkbox header for summary view
+        if(isSummaryView) {
+            thead += '<th style="width: 40px;"><input type="checkbox" id="select_all" class="select-all-checkbox" /></th>';
+        }
+        $.each(headers, function(i, header) {
+            thead += '<th>' + header.title + '</th>';
+        });
+        thead += '</tr></thead>';
+        return thead;
+    }
+
+    function buildTableBody(rows) {
+        var tbody = '<tbody>';
+        $.each(rows, function(i, row) {
+            // Skip total row in summary view
+            if(isSummaryView && row.sale_id === '-') {
+                tbody += '<tr class="total-row">';
+                if(isSummaryView) {
+                    tbody += '<td></td>';
+                }
+                $.each(currentHeaders, function(j, header) {
+                    var value = row[header.field] || '';
+                    tbody += '<td>' + value + '</td>';
+                });
+                tbody += '</tr>';
+                return;
+            }
+            
+            tbody += '<tr data-sale-id="' + row.sale_id + '">';
+            // Add checkbox for summary view
+            if(isSummaryView) {
+                tbody += '<td><input type="checkbox" class="row-checkbox" value="' + row.sale_id + '" /></td>';
+            }
+            $.each(currentHeaders, function(j, header) {
+                var value = row[header.field] || '';
+                tbody += '<td>' + value + '</td>';
+            });
+            tbody += '</tr>';
+        });
+        tbody += '</tbody>';
+        return tbody;
+    }
+
+    function loadData() {
+        $.ajax({
+            url: '<?= esc($controller_name) ?>/search',
+            type: 'GET',
+            data: getQueryParams(),
+            dataType: 'json',
+            success: function(response) {
+                // Update headers if provided from server
+                if(response.headers && response.headers.length > 0) {
+                    currentHeaders = response.headers;
+                }
+                
+                // Build and update table
+                var table = '<table class="table table-striped table-bordered">';
+                table += buildTableHead();
+                table += buildTableBody(response.rows);
+                table += '</table>';
+                
+                $('#table_content').html(table);
+                
+                // Bind checkbox events
+                bindCheckboxEvents();
+                
+                // Update payment summary if in summary view
+                if(isSummaryView && response.payment_summary) {
+                    $('#payment_summary').html(response.payment_summary);
+                } else {
+                    $('#payment_summary').html('');
+                }
+            },
+            error: function(xhr) {
+                console.log('Error loading data:', xhr);
+                $('#table_content').html('<p>Error loading data</p>');
+            }
+        });
+    }
+
+    function getSelectedSaleIds() {
+        var selected = [];
+        $('#table_content').find('input.row-checkbox:checked').each(function() {
+            selected.push($(this).val());
+        });
+        return selected;
+    }
+
+    function bindCheckboxEvents() {
+        // Select all checkbox
+        $('#table_content').on('change', '#select_all', function() {
+            var isChecked = $(this).is(':checked');
+            $('#table_content').find('input.row-checkbox').prop('checked', isChecked);
+            updateBulkActionButtons();
+        });
+
+        // Individual row checkbox
+        $('#table_content').on('change', 'input.row-checkbox', function() {
+            var total = $('#table_content').find('input.row-checkbox').length;
+            var checked = $('#table_content').find('input.row-checkbox:checked').length;
+            
+            // Update select all checkbox
+            $('#table_content').find('#select_all').prop('checked', total === checked && total > 0);
+            updateBulkActionButtons();
+        });
+    }
+
+    function updateBulkActionButtons() {
+        var selectedCount = getSelectedSaleIds().length;
+        if(selectedCount > 0) {
+            $('#bulk_actions').show();
+            $('#bulk_count').text(selectedCount);
+        } else {
+            $('#bulk_actions').hide();
+        }
+    }
+
+    // Event listeners for filtering
+    $('#filters').on('hidden.bs.select', function(e) {
+        loadData();
     });
+
+    $('#search_sale_id, #search_vehicle_no, #search_item_name, #search_customer_name, #search_customer_phone').on('keyup', function() {
+        loadData();
+    });
+
+    $("#daterangepicker").on('apply.daterangepicker', function(ev, picker) {
+        loadData();
+    });
+
+    // Summary view toggle
+    $('#summary_view').on('change', function() {
+        isSummaryView = $(this).is(':checked');
+        loadData();
+    });
+
+    // Bulk action: Cancel selection
+    $(document).on('click', '#bulk_cancel', function() {
+        $('#table_content').find('input.row-checkbox').prop('checked', false);
+        $('#table_content').find('#select_all').prop('checked', false);
+        updateBulkActionButtons();
+    });
+
+    // Bulk action: Change customer
+    $(document).on('click', '#bulk_edit_customer', function() {
+        $('#bulk_edit_modal').modal('show');
+    });
+
+    // Confirm bulk customer change
+    $(document).on('click', '#confirm_bulk_customer', function() {
+        var selectedIds = getSelectedSaleIds();
+        var customerId = $('#bulk_customer_id').val();
+        
+        if(!customerId) {
+            alert('Please select a customer');
+            return;
+        }
+        
+        $.ajax({
+            url: '<?= esc($controller_name) ?>/bulk_update',
+            type: 'POST',
+            data: {
+                ids: selectedIds,
+                field: 'customer_id',
+                value: customerId
+            },
+            dataType: 'json',
+            success: function(response) {
+                if(response.success) {
+                    alert('Customer updated successfully');
+                    $('#bulk_edit_modal').modal('hide');
+                    loadData();
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            },
+            error: function(xhr) {
+                console.log('Error:', xhr);
+                alert('Error updating customer');
+            }
+        });
+    });
+
+    // Bulk action: Mark as paid
+    $(document).on('click', '#bulk_mark_paid', function() {
+        if(!confirm('Mark selected sales as paid?')) {
+            return;
+        }
+        
+        var selectedIds = getSelectedSaleIds();
+        
+        $.ajax({
+            url: '<?= esc($controller_name) ?>/bulk_update',
+            type: 'POST',
+            data: {
+                ids: selectedIds,
+                field: 'mark_paid',
+                value: 1
+            },
+            dataType: 'json',
+            success: function(response) {
+                if(response.success) {
+                    alert('Marked as paid successfully');
+                    loadData();
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            },
+            error: function(xhr) {
+                console.log('Error:', xhr);
+                alert('Error marking as paid');
+            }
+        });
+    });
+
+    // Initial load
+    loadData();
 });
 </script>
 
@@ -70,20 +278,64 @@ $(document).ready(function()
 
 <div id="toolbar">
     <div class="pull-left form-inline" role="toolbar">
-        <button id="delete" class="btn btn-default btn-sm print_hide">
-            <span class="glyphicon glyphicon-trash">&nbsp</span><?= lang('Common.delete') ?>
-        </button>
-
+        <?= form_input (['name' => 'search_sale_id', 'class' => 'form-control input-sm', 'id' => 'search_sale_id', 'placeholder' => 'Sale ID', 'style' => 'width: 100px;']) ?>
+        <?= form_input (['name' => 'search_vehicle_no', 'class' => 'form-control input-sm', 'id' => 'search_vehicle_no', 'placeholder' => 'Vehicle No', 'style' => 'width: 100px;']) ?>
+        <?= form_input (['name' => 'search_item_name', 'class' => 'form-control input-sm', 'id' => 'search_item_name', 'placeholder' => 'Item Name', 'style' => 'width: 120px;']) ?>
+        <?= form_input (['name' => 'search_customer_name', 'class' => 'form-control input-sm', 'id' => 'search_customer_name', 'placeholder' => 'Customer Name', 'style' => 'width: 120px;']) ?>
+        <?= form_input (['name' => 'search_customer_phone', 'class' => 'form-control input-sm', 'id' => 'search_customer_phone', 'placeholder' => 'Phone Number', 'style' => 'width: 120px;']) ?>
         <?= form_input (['name' => 'daterangepicker', 'class' => 'form-control input-sm', 'id' => 'daterangepicker']) ?>
         <?= form_multiselect('filters[]', $filters, $selected_filters, ['id' => 'filters', 'data-none-selected-text'=>lang('Common.none_selected_text'), 'class' => 'selectpicker show-menu-arrow', 'data-selected-text-format' => 'count > 1', 'data-style' => 'btn-default btn-sm', 'data-width' => 'fit']) ?>
+        <label style="margin-left: 15px; margin-bottom: 0;">
+            <input type="checkbox" id="summary_view" name="summary_view" checked />
+            Summary View
+        </label>
     </div>
 </div>
 
-<div id="table_holder">
-    <table id="table"></table>
+<div id="bulk_actions" style="display: none; margin: 15px 0; padding: 10px; background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;">
+    <span style="margin-right: 15px;"><strong><span id="bulk_count">0</span> record(s) selected</strong></span>
+    <button type="button" class="btn btn-primary btn-sm" id="bulk_edit_customer">
+        <span class="glyphicon glyphicon-user"></span> Change Customer
+    </button>
+    <button type="button" class="btn btn-primary btn-sm" id="bulk_mark_paid">
+        <span class="glyphicon glyphicon-ok"></span> Mark as Paid
+    </button>
+    <button type="button" class="btn btn-danger btn-sm" id="bulk_cancel">
+        Cancel Selection
+    </button>
+</div>
+
+<div id="table_content">
+    <!-- Table will be loaded here via AJAX -->
 </div>
 
 <div id="payment_summary">
+</div>
+
+<!-- Bulk Edit Customer Modal -->
+<div id="bulk_edit_modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title">Change Customer</h4>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="bulk_customer_id">Select Customer:</label>
+                    <select id="bulk_customer_id" class="form-control">
+                        <option value="">-- Select Customer --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirm_bulk_customer">Update</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <?= view('partial/footer') ?>

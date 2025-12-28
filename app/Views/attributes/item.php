@@ -127,12 +127,30 @@ foreach ($ordered as $definition_id => $definition_value) {
             ]);
             break;
           case DROPDOWN:
-            $selected_value = $definition_value['selected_value'];
-            $values = ['Select '.$definition_value['definition_name'], ...$definition_value['values']];
+            // If values is an object (from API), convert to array; otherwise use as-is
+            $values_array = is_object($definition_value['values']) 
+              ? (array)$definition_value['values'] 
+              : $definition_value['values'];
+            
+            // Determine which value to select
+            // First, check if attribute_value text exists in the values array (search by value, not key)
+            $selected_key = '';
+            if (!empty($attribute_value) && !empty($attribute_value->attribute_value)) {
+              // Search for the key where the value matches the attribute_value text
+              $selected_key = array_search($attribute_value->attribute_value, $values_array, true);
+              // If not found by text, try the selected_value key directly
+              if ($selected_key === false && !empty($definition_value['selected_value']) && isset($values_array[$definition_value['selected_value']])) {
+                $selected_key = $definition_value['selected_value'];
+              }
+            } elseif (!empty($definition_value['selected_value']) && isset($values_array[$definition_value['selected_value']])) {
+              $selected_key = $definition_value['selected_value'];
+            }
+            
+            $options = ['Select '.$definition_value['definition_name']] + $values_array;
             echo form_dropdown([
               'name' => "attribute_links[$definition_id]",
-              'options' => $values,
-              'selected' => $selected_value,
+              'options' => $options,
+              'selected' => $selected_key !== '' ? $selected_key : '',
               'class' => 'form-control select-2-new-item-attributes',
               'data-definition-id' => $definition_id,
               'data-definition-label' => $definition_value['definition_name']

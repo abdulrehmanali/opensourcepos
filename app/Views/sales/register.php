@@ -162,7 +162,8 @@ if ($isDevelopment) {
     cart: <?= json_encode($cart ?? []) ?>,
     total: <?= $total ?? 0 ?>,
     amount_due: <?= $amount_due ?? 0 ?>,
-    config: <?= json_encode($config ?? []) ?>
+    config: <?= json_encode($config ?? []) ?>,
+    categories: <?= json_encode($categories ?? []) ?>
   };
 </script>
 

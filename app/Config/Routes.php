@@ -40,6 +40,21 @@ $routes->add('reports/specific_employees', 'Reports::specific_employee_input');
 $routes->add('reports/specific_discounts', 'Reports::specific_discount_input');
 $routes->add('reports/specific_suppliers', 'Reports::specific_supplier_input');
 
+// Customer routes
+$routes->get('customers', 'Customers::getIndex');
+$routes->get('customers/(:num)', 'Customers::getView/$1');
+$routes->post('customers/save/(:num)', 'Customers::postSave/$1');
+$routes->get('customers/save', 'Customers::postSave');
+$routes->post('customers/save', 'Customers::postSave');
+$routes->get('customers/row/(:num)', 'Customers::getRow/$1');
+$routes->post('customers/search', 'Customers::getSearch');
+$routes->post('customers/check_email', 'Customers::postCheckEmail');
+$routes->post('customers/check_account_number', 'Customers::postCheckAccountNumber');
+$routes->post('customers/delete', 'Customers::postDelete');
+$routes->get('customers/csv', 'Customers::getCsv');
+$routes->get('customers/csv_import', 'Customers::getCsvImport');
+$routes->post('customers/import_csv', 'Customers::postImportCsvFile');
+
 // Add these routes for the new customer methods
 $routes->get('customers/byPhoneNumber', 'Customers::byPhoneNumber');
 $routes->get('customers/byPhoneNumberOrCreateCustomer', 'Customers::byPhoneNumberOrCreateCustomer');

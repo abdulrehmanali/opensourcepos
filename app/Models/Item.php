@@ -694,19 +694,20 @@ class Item extends Model
 	 * @param string $attributeName Name of the attribute to find
 	 * @return string Attribute value or empty string if not found
 	 */
-	private function getAttrFromJson(?string $jsonAttributes, string $attributeName): string
+	private function getAttrFromJson(?string $attributes, string $attributeName): string
 	{
-		if(empty($jsonAttributes)) {
+		if(empty($attributes)) {
 			return '';
 		}
 		
 		try {
-			$attrs = json_decode($jsonAttributes, true);
-			if(is_array($attrs)) {
-				foreach($attrs as $attr) {
-					if(isset($attr['name'], $attr['value']) && strcasecmp($attr['name'], $attributeName) === 0) {
-						return (string)$attr['value'];
-					}
+			// Handle pipe-separated format: "Brand:Value1|PartNo:Value2|..."
+			$pairs = explode('|', $attributes);
+			foreach($pairs as $pair) {
+				if(empty($pair)) continue;
+				[$name, $value] = explode(':', $pair, 2);
+				if(strcasecmp(trim($name), $attributeName) === 0) {
+					return trim($value);
 				}
 			}
 		} catch(\Exception $e) {
@@ -749,73 +750,36 @@ class Item extends Model
 		$suggestions = [];
 		$non_kit = [ITEM, ITEM_AMOUNT_ENTRY];
 		$deletedFlag = isset($filters['is_deleted']) ? (int)$filters['is_deleted'] : 0;
+		$categoryFilter = isset($filters['category']) ? $filters['category'] : null;
 
-		// Check if multi-field search (contains %)
-		$hasMultiFieldSearch = strpos($search, '%') !== false;
-		$searchTerms = $hasMultiFieldSearch ? $this->parseMultiFieldSearch($search) : [];
+
 
 	  $builder = $this->db->table('items AS i');
 	  $builder->join('ospos_item_categories AS ic', 'ic.item_id = i.item_id', 'left');
 	  $builder->where('i.deleted', $deletedFlag);
 		$builder->whereIn('i.item_type', $non_kit);
 		
-		// Apply multi-field filters if applicable
-		if($hasMultiFieldSearch && !empty($searchTerms['product'])) {
-			$builder->like('i.name', $searchTerms['product']);
-		} elseif(!$hasMultiFieldSearch) {
-			$builder->like('i.name', $search);
+		// Filter by category if provided
+		if($categoryFilter) {
+			$builder->where('ic.name', $categoryFilter);
+		}
+		
+		// Apply search filter - supports both simple and concatenated search patterns
+		if(!empty($search)) {
+			// Convert search pattern to LIKE format
+			// e.g., "term1%term2%term3" becomes "%term1%term2%term3%"
+			$likeSearch = '%' . trim($search) . '%';
+			$builder->like('i.name', $likeSearch);
 		}
 		
 		$builder->orderBy('i.name', 'asc');
     $builder->select('i.item_id, i.name, i.item_number, MAX(ic.name) AS category, i.description, i.pack_name, i.unit_price, i.cost_price, i.single_unit_quantity', false);
-		$builder->select('(SELECT JSON_ARRAYAGG(JSON_OBJECT("name", def.definition_name, "value", val.attribute_value)) FROM ospos_attribute_links AS lnk LEFT JOIN ospos_attribute_values AS val ON val.attribute_id = lnk.attribute_id LEFT JOIN ospos_attribute_definitions AS def ON def.definition_id = lnk.definition_id WHERE lnk.item_id = i.item_id AND lnk.sale_id IS NULL AND lnk.receiving_id IS NULL) AS attributes', false);
+		$builder->select('(SELECT GROUP_CONCAT(CONCAT_WS(":", def.definition_name, val.attribute_value) SEPARATOR "|") FROM ospos_attribute_links AS lnk LEFT JOIN ospos_attribute_values AS val ON val.attribute_id = lnk.attribute_id LEFT JOIN ospos_attribute_definitions AS def ON def.definition_id = lnk.definition_id WHERE lnk.item_id = i.item_id AND lnk.sale_id IS NULL AND lnk.receiving_id IS NULL) AS attributes', false);
 		$builder->groupBy('i.item_id');
 
 		foreach($builder->get()->getResult() as $row)
 		{
-			// For multi-field search, apply additional filters on returned data
-			if($hasMultiFieldSearch) {
-				$passesFilter = true;
-				
-				// Check category filter
-				if(!empty($searchTerms['category']) && stripos($row->category ?? '', $searchTerms['category']) === false) {
-					$passesFilter = false;
-				}
-				
-				// Check attribute filters (Brand, Part No, OEM No, Make)
-				if($passesFilter && !empty($searchTerms['brand'])) {
-					$brand = $this->getAttrFromJson($row->attributes, 'Brand');
-					if(stripos($brand, $searchTerms['brand']) === false) {
-						$passesFilter = false;
-					}
-				}
-				
-				if($passesFilter && !empty($searchTerms['part_no'])) {
-					$partNo = $this->getAttrFromJson($row->attributes, 'Part No');
-					if(stripos($partNo, $searchTerms['part_no']) === false) {
-						$passesFilter = false;
-					}
-				}
-				
-				if($passesFilter && !empty($searchTerms['oem_no'])) {
-					$oemNo = $this->getAttrFromJson($row->attributes, 'OEM No');
-					if(stripos($oemNo, $searchTerms['oem_no']) === false) {
-						$passesFilter = false;
-					}
-				}
-				
-				if($passesFilter && !empty($searchTerms['make'])) {
-					$make = $this->getAttrFromJson($row->attributes, 'Make');
-					if(stripos($make, $searchTerms['make']) === false) {
-						$passesFilter = false;
-					}
-				}
-				
-				if(!$passesFilter) {
-					continue;
-				}
-			}
-			
+			// No additional filtering needed - all matching done in query
 			$suggestions[] = [
 				'value' => $row->item_id,
 				'label' => $this->get_search_suggestion_label($row),
@@ -835,15 +799,20 @@ class Item extends Model
 	$builder = $this->db->table('items AS i');
 	$builder->join('ospos_item_categories AS ic', 'ic.item_id = i.item_id', 'left');
 	$builder->select('i.item_id, i.name, i.item_number, MAX(ic.name) AS category, i.description, i.pack_name, i.unit_price, i.cost_price, i.single_unit_quantity', false);
-	$builder->select('(SELECT JSON_ARRAYAGG(JSON_OBJECT("name", def.definition_name, "value", val.attribute_value)) FROM ospos_attribute_links AS lnk LEFT JOIN ospos_attribute_values AS val ON val.attribute_id = lnk.attribute_id LEFT JOIN ospos_attribute_definitions AS def ON def.definition_id = lnk.definition_id WHERE lnk.item_id = i.item_id AND lnk.sale_id IS NULL AND lnk.receiving_id IS NULL) AS attributes', false);
+	$builder->select('(SELECT GROUP_CONCAT(CONCAT_WS(":", def.definition_name, val.attribute_value) SEPARATOR "|") FROM ospos_attribute_links AS lnk LEFT JOIN ospos_attribute_values AS val ON val.attribute_id = lnk.attribute_id LEFT JOIN ospos_attribute_definitions AS def ON def.definition_id = lnk.definition_id WHERE lnk.item_id = i.item_id AND lnk.sale_id IS NULL AND lnk.receiving_id IS NULL) AS attributes', false);
 	$builder->where('i.deleted', $deletedFlag);
-		$builder->whereIn('i.item_type', $non_kit);
+	$builder->whereIn('i.item_type', $non_kit);
+	
+	// Filter by category if provided
+	if($categoryFilter) {
+		$builder->where('ic.name', $categoryFilter);
+	}
 		
-		// Apply multi-field filters for item_number search
-		if($hasMultiFieldSearch && !empty($searchTerms['product'])) {
-			$builder->like('i.item_number', $searchTerms['product']);
-		} elseif(!$hasMultiFieldSearch) {
-			$builder->like('i.item_number', $search);
+		// Apply search filter for item_number
+		if(!empty($search)) {
+			// Convert search pattern to LIKE format
+			$likeSearch = '%' . trim($search) . '%';
+			$builder->like('i.name', $likeSearch);
 		}
 		
 		$builder->orderBy('i.item_number', 'asc');
@@ -851,49 +820,7 @@ class Item extends Model
 
 		foreach($builder->get()->getResult() as $row)
 		{
-			// For multi-field search, apply additional filters on returned data
-			if($hasMultiFieldSearch) {
-				$passesFilter = true;
-				
-				// Check category filter
-				if(!empty($searchTerms['category']) && stripos($row->category ?? '', $searchTerms['category']) === false) {
-					$passesFilter = false;
-				}
-				
-				// Check attribute filters (Brand, Part No, OEM No, Make)
-				if($passesFilter && !empty($searchTerms['brand'])) {
-					$brand = $this->getAttrFromJson($row->attributes, 'Brand');
-					if(stripos($brand, $searchTerms['brand']) === false) {
-						$passesFilter = false;
-					}
-				}
-				
-				if($passesFilter && !empty($searchTerms['part_no'])) {
-					$partNo = $this->getAttrFromJson($row->attributes, 'Part No');
-					if(stripos($partNo, $searchTerms['part_no']) === false) {
-						$passesFilter = false;
-					}
-				}
-				
-				if($passesFilter && !empty($searchTerms['oem_no'])) {
-					$oemNo = $this->getAttrFromJson($row->attributes, 'OEM No');
-					if(stripos($oemNo, $searchTerms['oem_no']) === false) {
-						$passesFilter = false;
-					}
-				}
-				
-				if($passesFilter && !empty($searchTerms['make'])) {
-					$make = $this->getAttrFromJson($row->attributes, 'Make');
-					if(stripos($make, $searchTerms['make']) === false) {
-						$passesFilter = false;
-					}
-				}
-				
-				if(!$passesFilter) {
-					continue;
-				}
-			}
-			
+			// No additional filtering needed - all matching done in query
 			$suggestions[] = [
 				'value' => $row->item_id,
 				'label' => $this->get_search_suggestion_label($row),

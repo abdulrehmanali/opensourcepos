@@ -194,12 +194,29 @@
 
     var options;
 
+    function isValidJSON(str) {
+      if (typeof str !== 'string') return false;
+
+      try {
+        JSON.parse(str);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
     var toggle_column_visibility = function() {
         if (localStorage[options.employee_id]) {
-            var user_settings = JSON.parse(localStorage[options.employee_id]);
+          try {
+            let isvalid = localStorage[options.employee_id]
+            if(!isValidJSON(isvalid)) return;
+            var user_settings = JSON.parse(isvalid);
             user_settings[options.resource] && $.each(user_settings[options.resource], function(index, element) {
                 element ? table().showColumn(index) : table().hideColumn(index);
             });
+          } catch (error) {
+            console.error("Error parsing user settings from localStorage:", error);
+          }
         }
     };
 
@@ -280,6 +297,65 @@
         table().refresh();
     }
 
+    var updateHeaders = function(newHeaders) {
+        // Store the new headers in options
+        options.headers = newHeaders;
+        
+        // Destroy and reinitialize the table with new headers
+        $('#table').bootstrapTable('destroy');
+        $('#table').bootstrapTable($.extend(options, {
+            columns: newHeaders,
+            stickyHeader: true,
+            url: options.resource + '/search',
+            sidePagination: 'server',
+            selectItemName: 'btSelectItem',
+            pageSize: options.pageSize,
+            pagination: true,
+            search: options.resource || false,
+            showColumns: true,
+            clickToSelect: true,
+            showExport: true,
+            exportDataType: 'basic',
+            exportTypes: ['json', 'xml', 'csv', 'txt', 'sql', 'excel', 'pdf'],
+            exportOptions: {
+                fileName: options.resource.replace(/.*\/(.*?)$/g, '$1') + "_" + new Date().toISOString().slice(0, 16).replace(/(-|\s*|T|:)*/g,"")
+            },
+            onPageChange: function(response) {
+                load_success(response);
+                enable_actions();
+            },
+            toolbar: '#toolbar',
+            uniqueId: options.uniqueId || 'id',
+            trimOnSearch: false,
+            onCheck: enable_actions,
+            onUncheck: enable_actions,
+            onCheckAll: enable_actions,
+            onUncheckAll: enable_actions,
+            onLoadSuccess: function(response) {
+                load_success(response);
+                enable_actions();
+            },
+            onColumnSwitch : function(field, checked) {
+                var user_settings = localStorage[options.employee_id];
+                user_settings = (user_settings && JSON.parse(user_settings)) || {};
+                user_settings[options.resource] = user_settings[options.resource] || {};
+                user_settings[options.resource][field] = checked;
+                localStorage[options.employee_id] = JSON.stringify(user_settings);
+                dialog_support.init("a.modal-dlg");
+            },
+            queryParamsType: 'limit',
+            iconSize: 'sm',
+            silentSort: true,
+            paginationVAlign: 'bottom',
+            escape: true
+        }));
+        enable_actions();
+        init_delete();
+        init_restore();
+        toggle_column_visibility();
+        dialog_support.init("button.modal-dlg");
+    };
+
     var submit_handler = function(url) {
         return function (resource, response) {
             var id = response.id !== undefined ? response.id.toString() : "";
@@ -326,6 +402,7 @@
         do_delete: do_action("delete"),
         do_restore: do_action("restore"),
         refresh : refresh,
+        updateHeaders: updateHeaders,
         selected_ids : selected_ids,
     });
 

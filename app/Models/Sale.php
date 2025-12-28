@@ -175,6 +175,7 @@ class Sale extends Model
         'MAX(`' . $db_prefix . 'sales`.`quote_number`) AS quote_number',
         'SUM(`sales_items`.`quantity_purchased`) AS items_purchased',
         'MAX(CONCAT(`customer_p`.`first_name`, " ", `customer_p`.`last_name`)) AS customer_name',
+        'MAX(`customer_p`.`phone_number`) AS phone_number',
         'MAX(`customer`.`company_name`) AS company_name',
         $sale_subtotal . ' AS subtotal',
         $tax . ' AS tax',
@@ -197,6 +198,9 @@ class Sale extends Model
       'sales_items.sale_id = sales_items_taxes.sale_id AND sales_items.item_id = sales_items_taxes.item_id AND sales_items.line = sales_items_taxes.line',
       'LEFT OUTER'
     );
+    // Add joins for vehicle and item searches
+    $builder->join('vehicles', '`' . $db_prefix . 'sales`.`vehicle_id` = `' . $db_prefix . 'vehicles`.`id`', 'LEFT');
+    $builder->join('items', '`sales_items`.`item_id` = `' . $db_prefix . 'items`.`item_id`', 'LEFT');
 
     $builder->where($where);
 
@@ -650,10 +654,10 @@ class Sale extends Model
       {
         // Update stock quantity if item type is a standard stock item and the sale is a standard sale
         $item_quantity_data = $item_quantity->get_item_quantity($item_data['item_id'], $item_data['item_location']);
-
+        $item_quantity_after_extract = ($item_data['quantity'] ?? $item_data['quantity_purchased'] ?? 0); 
         $item_quantity->save_value(
           [
-            'quantity'    => $item_quantity_data->quantity - ($item_data['quantity'] ?? $item_data['quantity_purchased'] ?? 0),
+            'quantity'    => $item_quantity_data->quantity - $item_quantity_after_extract,
             'item_id' => $item_data['item_id'],
             'location_id' => $item_data['item_location']
           ],
@@ -662,7 +666,7 @@ class Sale extends Model
         );
 
         // if an items was deleted but later returned it's restored with this rule
-        if (($item_data['quantity'] ?? $item_data['quantity_purchased'] ?? 0) < 0) {
+        if ($item_quantity_after_extract < 0) {
           $item->undelete($item_data['item_id']);
         }
 
@@ -674,7 +678,7 @@ class Sale extends Model
           'trans_user' => $employee_id,
           'trans_location' => $item_data['item_location'],
           'trans_comment' => $sale_remarks,
-          'trans_inventory' => -$item_data['quantity']
+          'trans_inventory' => -$item_quantity_after_extract
         ];
 
         $inventory->insert($inv_data, false);
@@ -1490,8 +1494,44 @@ class Sale extends Model
    */
   private function add_filters_to_query(string $search, array $filters, BaseBuilder $builder): void
   {
-    if (!empty($search))    //TODO: this is duplicated code.  We should think about refactoring out a method
+    // Handle separate search fields (new approach)
+    $has_separate_search = !empty($filters['search_sale_id']) || !empty($filters['search_vehicle_no']) || 
+                          !empty($filters['search_item_name']) || !empty($filters['search_customer_name']) ||
+                          !empty($filters['search_customer_phone']);
+
+    if ($has_separate_search) {
+      // Search by Sale ID
+      if (!empty($filters['search_sale_id'])) {
+        $builder->like('sales.sale_id', $filters['search_sale_id']);
+      }
+
+      // Search by Vehicle Number
+      if (!empty($filters['search_vehicle_no'])) {
+        $builder->like('vehicles.vehicle_no', $filters['search_vehicle_no']);
+      }
+
+      // Search by Item Name
+      if (!empty($filters['search_item_name'])) {
+        $builder->like('items.name', $filters['search_item_name']);
+      }
+
+      // Search by Customer Name
+      if (!empty($filters['search_customer_name'])) {
+        $builder->groupStart();
+        $builder->like('customer_p.last_name', $filters['search_customer_name']);
+        $builder->orLike('customer_p.first_name', $filters['search_customer_name']);
+        $builder->orLike('CONCAT(customer_p.first_name, " ", customer_p.last_name)', $filters['search_customer_name']);
+        $builder->orLike('customer.company_name', $filters['search_customer_name']);
+        $builder->groupEnd();
+      }
+
+      // Search by Customer Phone Number
+      if (!empty($filters['search_customer_phone'])) {
+        $builder->like('customer_p.phone_number', $filters['search_customer_phone']);
+      }
+    } else if (!empty($search))    //TODO: this is duplicated code.  We should think about refactoring out a method
     {
+      // Backward compatibility with combined search
       if ($filters['is_valid_receipt']) {
         $pieces = explode(' ', $search);
         $builder->where('sales.sale_id', $pieces[1]);

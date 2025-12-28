@@ -91,10 +91,10 @@
             {
             ?>
                 <tr>
-                    <td><?= esc(ucfirst($item['name'] . ' ' . $item['attribute_values'])) ?></td>
-                    <td><?= to_currency($item['price']) ?></td>
-                    <td><?= to_quantity_decimals($item['quantity']) ?></td>
-                    <td class="total-value"><?= to_currency($item[($config['receipt_show_total_discount'] ? 'total' : 'discounted_total')]) ?></td>
+                    <td><?= esc(ucfirst($item['name'] . ' ' . ($item['attribute_values'] ?? ''))) ?></td>
+                    <td><?= to_currency($item['price'] ?? $item['item_unit_price'] ?? 0) ?></td>
+                    <td><?= to_quantity_decimals($item['quantity'] ?? $item['quantity_purchased'] ?? 0) ?></td>
+                    <td class="total-value"><?= to_currency($item[($config['receipt_show_total_discount'] ? 'total' : 'discounted_total')] ?? 0) ?></td>
                     <?php
                     if($config['receipt_show_tax_ind'])
                     {

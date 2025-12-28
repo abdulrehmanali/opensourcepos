@@ -135,7 +135,8 @@ class Sale_lib
         {
             if($v['print_option'] == PRINT_YES)
             {
-                if($v['price'] == 0.0)
+                $price = $v['price'] ?? $v['item_unit_price'] ?? 0.0;
+                if($price == 0.0)
                 {
                     $v['discount'] = 0.0;
                 }
