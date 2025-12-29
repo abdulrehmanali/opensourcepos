@@ -34,17 +34,6 @@ $(document).ready(function()
 
     function buildTableHead() {
         var headers = currentHeaders;
-        if(!isSummaryView) {
-            headers = [
-                {title: '<?= lang('ID') ?>', field: 'sale_id'},
-                {title: '<?= lang('Item Name') ?>', field: 'name'},
-                {title: '<?= lang('Sales.quantity') ?>', field: 'quantity_purchased'},
-                {title: '<?= lang('Sales.price') ?>', field: 'item_unit_price'},
-                {title: '<?= lang('Sales.customer') ?>', field: 'customer_name'},
-                {title: '<?= lang('Phone Number') ?>', field: 'phone_number'},
-                {title: '<?= lang('Sales.date') ?>', field: 'sale_date'}
-            ];
-        }
         
         var thead = '<thead><tr>';
         // Add checkbox header for summary view
@@ -76,12 +65,33 @@ $(document).ready(function()
             }
             
             tbody += '<tr data-sale-id="' + row.sale_id + '">';
-            // Add checkbox for summary view
+            // Add checkbox for summary view only
             if(isSummaryView) {
                 tbody += '<td><input type="checkbox" class="row-checkbox" value="' + row.sale_id + '" /></td>';
             }
             $.each(currentHeaders, function(j, header) {
                 var value = row[header.field] || '';
+                
+                // Check if this is a payment_type field (payment_type_due, payment_type_cash, etc.)
+                if(header.field && header.field.startsWith('payment_type_')) {
+                    // Extract payment type name from field
+                    var paymentTypeKey = header.field.replace('payment_type_', '');
+                    // Convert snake_case to proper payment type name (e.g., debit_card -> Debit Card)
+                    var paymentTypeName = paymentTypeKey.split('_').map(function(word) {
+                        return word.charAt(0).toUpperCase() + word.slice(1);
+                    }).join(' ');
+                    
+                    // Find the matching payment in the payments array
+                    if(row.payments && row.payments.length > 0) {
+                        for(var pi = 0; pi < row.payments.length; pi++) {
+                            if(row.payments[pi].payment_type === paymentTypeName) {
+                                value = row.payments[pi].payment_amount;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
                 tbody += '<td>' + value + '</td>';
             });
             tbody += '</tr>';
@@ -97,7 +107,7 @@ $(document).ready(function()
             data: getQueryParams(),
             dataType: 'json',
             success: function(response) {
-                // Update headers if provided from server
+                // Update headers from server response
                 if(response.headers && response.headers.length > 0) {
                     currentHeaders = response.headers;
                 }
@@ -105,7 +115,7 @@ $(document).ready(function()
                 // Build and update table
                 var table = '<table class="table table-striped table-bordered">';
                 table += buildTableHead();
-                table += buildTableBody(response.rows);
+                table += buildTableBody(response.rows || []);
                 table += '</table>';
                 
                 $('#table_content').html(table);

@@ -174,13 +174,37 @@ class Sales extends Secure_Controller
     $payments = $this->sale->get_payments_summary($search, $filters);
     $payment_summary = get_sales_manage_payments_summary($payments);
 
+    // Get payments grouped by sale_id
+    $all_payments = [];
+    $payments_result = $this->db->table('sales_payments')
+      ->select('sale_id, payment_id, payment_type, payment_amount, payment_time')
+      ->orderBy('sale_id', 'ASC')
+      ->orderBy('payment_id', 'ASC')
+      ->get()
+      ->getResult();
+    
+    foreach ($payments_result as $payment) {
+      if (!isset($all_payments[$payment->sale_id])) {
+        $all_payments[$payment->sale_id] = [];
+      }
+      $all_payments[$payment->sale_id][] = [
+        'payment_id' => $payment->payment_id,
+        'payment_type' => $payment->payment_type,
+        'payment_amount' => $payment->payment_amount,
+        'payment_time' => $payment->payment_time
+      ];
+    }
+
     $data_rows = [];
     $headers = [];
     
     if ($summary_view == 1) {
       // Summary view - one row per sale (original format)
       foreach ($sales->getResult() as $sale) {
-        $data_rows[] = get_sale_data_row($sale);
+        $row = get_sale_data_row($sale);
+        // Add payments to this row
+        $row['payments'] = $all_payments[$sale->sale_id] ?? [];
+        $data_rows[] = $row;
       }
       if ($total_rows > 0) {
         $data_rows[] = get_sale_data_last_row($sales);
@@ -206,7 +230,8 @@ class Sales extends Secure_Controller
             'item_unit_price' => $item->item_unit_price,
             'customer_name' => $sale->customer_name,
             'phone_number' => $sale->phone_number ?? '',
-            'sale_date' => $sale->sale_date
+            'sale_date' => $sale->sale_date,
+            'payments' => $all_payments[$sale->sale_id] ?? []
           ];
         }
       }

@@ -68,7 +68,11 @@ function sales_headers(): array
         ['amount_due' => lang('Sales.amount_due')],
         ['amount_tendered' => lang('Sales.amount_tendered')],
         ['change_due' => lang('Sales.change_due')],
-        ['payment_type' => lang('Sales.payment_type')]
+        ['payment_type_due' => 'Due'],
+        ['payment_type_cash' => 'Cash'],
+        ['payment_type_debit_card' => 'Debit Card'],
+        ['payment_type_credit_card' => 'Credit Card'],
+        ['payment_type_check' => 'Check'],
     ];
  }
 
