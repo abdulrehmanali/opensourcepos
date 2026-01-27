@@ -295,6 +295,7 @@ class Customers extends Persons
             'discount_type' => $this->request->getPost('discount_type') == null ? PERCENT : $this->request->getPost('discount_type', FILTER_SANITIZE_NUMBER_INT),
             'package_id' => $this->request->getPost('package_id') == '' ? null : $this->request->getPost('package_id'),
             'taxable' => $this->request->getPost('taxable') != null,
+            'note' => $this->request->getPost('note'),
             'date' => $date_formatter->format('Y-m-d H:i:s'),
             'employee_id' => $this->request->getPost('employee_id', FILTER_SANITIZE_NUMBER_INT),
             'sales_tax_code_id' => $this->request->getPost('sales_tax_code_id') == '' ? null : $this->request->getPost('sales_tax_code_id', FILTER_SANITIZE_NUMBER_INT)
@@ -476,6 +477,7 @@ class Customers extends Persons
                             'discount' => $data[15],
                             'discount_type' => $data[16],
                             'taxable' => $data[17] == '' ? 0 : 1,
+                            'note' => isset($data[18]) ? $data[18] : '',
                             'date' => date('Y-m-d H:i:s'),
                             'employee_id' => $this->employee->get_logged_in_employee_info()->person_id
                         ];
@@ -607,6 +609,7 @@ class Customers extends Persons
                 'discount_type' => PERCENT,
                 'package_id' => null,
                 'taxable' => true,
+                'note' => '',
                 'date' => date('Y-m-d H:i:s'),
                 'employee_id' => $this->employee->get_logged_in_employee_info()->person_id,
                 'sales_tax_code_id' => null

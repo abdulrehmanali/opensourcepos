@@ -140,7 +140,7 @@
                         <?php
                         }
                         ?>
-                        <td class="total-value"><?= to_currency($item['discounted_total']) ?></td>
+                        <td class="total-value"><?= to_currency($item['discounted_total'] ?? 0) ?></td>
                     </tr>
                 <?php
                 }

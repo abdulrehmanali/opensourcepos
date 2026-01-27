@@ -15,6 +15,18 @@ $(document).ready(function()
     var currentHeaders = <?= $table_headers ?>;
     var isSummaryView = true;
 
+    // CSS for edited cells
+    var style = document.createElement('style');
+    style.innerHTML = `
+        td.payment-type-cell.edited {
+            background-color: #ffffcc !important;
+        }
+        td.payment-type-cell.editable-cell {
+            cursor: pointer;
+        }
+    `;
+    document.head.appendChild(style);
+
     // load the preset datarange picker
     <?= view('partial/daterangepicker') ?>
 
@@ -71,12 +83,13 @@ $(document).ready(function()
             }
             $.each(currentHeaders, function(j, header) {
                 var value = row[header.field] || '';
+                var cellClass = '';
+                var cellAttrs = '';
                 
                 // Check if this is a payment_type field (payment_type_due, payment_type_cash, etc.)
                 if(header.field && header.field.startsWith('payment_type_')) {
-                    // Extract payment type name from field
+                    cellClass = 'payment-type-cell editable-cell';
                     var paymentTypeKey = header.field.replace('payment_type_', '');
-                    // Convert snake_case to proper payment type name (e.g., debit_card -> Debit Card)
                     var paymentTypeName = paymentTypeKey.split('_').map(function(word) {
                         return word.charAt(0).toUpperCase() + word.slice(1);
                     }).join(' ');
@@ -90,9 +103,13 @@ $(document).ready(function()
                             }
                         }
                     }
+                    cellAttrs = 'data-sale-id="' + row.sale_id + '" data-payment-type="' + paymentTypeName + '" data-original-value="' + value + '"';
+                  // if (!cellAttrs) {
+                  //   cellAttrs = 'data-payment-type="' + paymentTypeName + '" data-original-value="' + value + '"';
+                  // }
                 }
                 
-                tbody += '<td>' + value + '</td>';
+                tbody += '<td class="' + cellClass + '" ' + cellAttrs + '>' + value + '</td>';
             });
             tbody += '</tr>';
         });
@@ -149,7 +166,7 @@ $(document).ready(function()
         // Select all checkbox
         $('#table_content').on('change', '#select_all', function() {
             var isChecked = $(this).is(':checked');
-            $('#table_content').find('input.row-checkbox').prop('checked', isChecked);
+            $('#table_content').find('input.row-checkbox:checked').prop('checked', isChecked);
             updateBulkActionButtons();
         });
 
@@ -163,6 +180,103 @@ $(document).ready(function()
             updateBulkActionButtons();
         });
     }
+
+    // Payment type cell inline editing
+    $(document).on('click', 'td.payment-type-cell', function() {
+        var $cell = $(this);
+        var currentValue = $cell.text().trim();
+        
+        // Prevent editing if already in edit mode
+        if($cell.find('input').length > 0) return;
+        
+        // Store original content and create input
+        var $input = $('<input type="number" step="0.01" class="form-control" style="width: 100%; padding: 4px;" />');
+        $input.val(currentValue);
+        
+        $cell.html('').append($input);
+        $input.focus();
+        
+        // Save on blur
+        $input.on('blur', function() {
+            var newValue = $(this).val();
+            if(newValue !== currentValue) {
+                $cell.addClass('edited');
+                showPaymentSaveButton();
+            }
+            $cell.html(newValue);
+        });
+        
+        // Save on Enter key
+        $input.on('keypress', function(e) {
+            if(e.which === 13) {
+                $(this).blur();
+            }
+        });
+    });
+
+    function showPaymentSaveButton() {
+        // Check if save button already exists
+        if($('#save_payment_changes').length === 0) {
+            var saveButton = '<button type="button" class="btn btn-success btn-sm" id="save_payment_changes" style="margin: 10px 0;">';
+            saveButton += '<span class="glyphicon glyphicon-ok"></span> Save Payment Changes';
+            saveButton += '</button>';
+            
+            // Insert button before the table
+            $('#table_content').before(saveButton);
+        }
+    }
+
+    // Save payment changes
+    $(document).on('click', '#save_payment_changes', function() {
+        var changes = [];
+        
+        // Collect all edited cells
+        $('#table_content').find('td.payment-type-cell.edited').each(function() {
+            var $cell = $(this);
+            var saleId = $cell.data('sale-id');
+            var paymentType = $cell.data('payment-type');
+            var newValue = $cell.text().trim();
+            var originalValue = $cell.data('original-value');
+            
+            if(newValue !== originalValue) {
+                changes.push({
+                    sale_id: saleId,
+                    payment_type: paymentType,
+                    payment_amount: newValue
+                });
+            }
+        });
+        
+        if(changes.length === 0) {
+            alert('No changes to save');
+            return;
+        }
+        
+        $.ajax({
+            url: '<?= esc($controller_name) ?>/BulkUpdatePayments',
+            type: 'POST',
+            data: {
+                changes: changes
+            },
+            dataType: 'json',
+            success: function(response) {
+                if(response.success) {
+                    alert('Payment changes saved successfully');
+                    // Remove edited class and save button
+                    $('#table_content').find('td.payment-type-cell').removeClass('edited');
+                    $('#save_payment_changes').remove();
+                    // Reload data
+                    loadData();
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            },
+            error: function(xhr) {
+                console.log('Error:', xhr);
+                alert('Error saving payment changes');
+            }
+        });
+    });
 
     function updateBulkActionButtons() {
         var selectedCount = getSelectedSaleIds().length;

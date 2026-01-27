@@ -65,6 +65,8 @@ function sales_headers(): array
         ['sale_id' => lang('Common.id')],
         ['sale_time' => lang('Sales.sale_time')],
         ['customer_name' => lang('Customers.customer')],
+        ['phone_number' => 'Phone #'],
+        ['vehicle_no' => 'Vehicle #'],
         ['amount_due' => lang('Sales.amount_due')],
         ['amount_tendered' => lang('Sales.amount_tendered')],
         ['change_due' => lang('Sales.change_due')],

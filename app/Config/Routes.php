@@ -42,11 +42,14 @@ $routes->add('reports/specific_suppliers', 'Reports::specific_supplier_input');
 
 // Customer routes
 $routes->get('customers', 'Customers::getIndex');
+$routes->get('customers/view', 'Customers::getView');
+$routes->get('customers/view/(:num)', 'Customers::getView/$1');
 $routes->get('customers/(:num)', 'Customers::getView/$1');
 $routes->post('customers/save/(:num)', 'Customers::postSave/$1');
 $routes->get('customers/save', 'Customers::postSave');
 $routes->post('customers/save', 'Customers::postSave');
 $routes->get('customers/row/(:num)', 'Customers::getRow/$1');
+$routes->get('customers/search', 'Customers::getSearch');
 $routes->post('customers/search', 'Customers::getSearch');
 $routes->post('customers/check_email', 'Customers::postCheckEmail');
 $routes->post('customers/check_account_number', 'Customers::postCheckAccountNumber');
@@ -66,4 +69,5 @@ $routes->get('vehicles/suggest', 'Vehicles::suggest');
 $routes->get('vehicles/getByVehicleNo', 'Vehicles::getByVehicleNo');
 $routes->post('vehicles/save', 'Vehicles::save');
 $routes->get('vehicles/getOrCreateByVehicleNo', 'Vehicles::getOrCreateByVehicleNo');
+
 // $routes->get('sales/customerSalesHistory', 'Sales::getCustomerSalesHistory');

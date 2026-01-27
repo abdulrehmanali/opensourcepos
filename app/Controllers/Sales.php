@@ -204,6 +204,8 @@ class Sales extends Secure_Controller
         $row = get_sale_data_row($sale);
         // Add payments to this row
         $row['payments'] = $all_payments[$sale->sale_id] ?? [];
+        $row['vehicle_no'] = $sale->vehicle_no ?? '';
+        $row['phone_number'] = $sale->phone_number ?? '';
         $data_rows[] = $row;
       }
       if ($total_rows > 0) {
@@ -230,6 +232,7 @@ class Sales extends Secure_Controller
             'item_unit_price' => $item->item_unit_price,
             'customer_name' => $sale->customer_name,
             'phone_number' => $sale->phone_number ?? '',
+            'vehicle_no' => $sale->vehicle_no ?? '',
             'sale_date' => $sale->sale_date,
             'payments' => $all_payments[$sale->sale_id] ?? []
           ];
@@ -242,12 +245,123 @@ class Sales extends Secure_Controller
         ['title' => lang('Sales.quantity'), 'field' => 'quantity_purchased', 'sortable' => false, 'align' => 'right'],
         ['title' => lang('Sales.price'), 'field' => 'item_unit_price', 'sortable' => false, 'align' => 'right'],
         ['title' => lang('Sales.customer'), 'field' => 'customer_name', 'sortable' => false],
-        ['title' => lang('Sales.phone'), 'field' => 'phone_number', 'sortable' => false],
+        ['title' => 'Phone #', 'field' => 'phone_number', 'sortable' => false],
+        ['title' => 'Vehicle #', 'field' => 'vehicle_no', 'sortable' => false],
         ['title' => lang('Sales.date'), 'field' => 'sale_date', 'sortable' => true]
       ];
     }
 
     echo json_encode(['total' => $total_rows, 'rows' => $data_rows, 'payment_summary' => $summary_view == 1 ? $payment_summary : '', 'headers' => $headers]);
+  }
+
+  /**
+   * Bulk update payments for multiple sales
+   * Receives an array of changes with sale_id, payment_type, and payment_amount
+   * 
+   * @return void
+   * @noinspection PhpUnused
+   */
+  public function postBulkUpdatePayments(): void
+  {
+    $changes = $this->request->getPost('changes');
+    
+    if (empty($changes)) {
+      echo json_encode([
+        'success' => false,
+        'message' => 'No changes provided'
+      ]);
+      return;
+    }
+    
+    try {
+      $successCount = 0;
+      $failureCount = 0;
+      $errors = [];
+      
+      foreach ($changes as $change) {
+        $sale_id = isset($change['sale_id']) ? (int)$change['sale_id'] : null;
+        $payment_type = isset($change['payment_type']) ? $change['payment_type'] : null;
+        $payment_amount = isset($change['payment_amount']) ? (float)$change['payment_amount'] : 0;
+        
+        if (!$sale_id || !$payment_type) {
+          $failureCount++;
+          $errors[] = "Invalid sale_id or payment_type";
+          continue;
+        }
+        
+        // Find and update the payment record
+        $existingPayment = $this->db->table('sales_payments')
+          ->where('sale_id', $sale_id)
+          ->where('payment_type', $payment_type)
+          ->get()
+          ->getRow();
+        
+        if ($existingPayment) {
+          // Update existing payment
+          $updateData = [
+            'payment_amount' => $payment_amount,
+            'payment_time' => date('Y-m-d H:i:s')
+          ];
+          
+          $result = $this->db->table('sales_payments')
+            ->where('payment_id', $existingPayment->payment_id)
+            ->update($updateData);
+          
+          if ($result) {
+            $successCount++;
+          } else {
+            $failureCount++;
+            $errors[] = "Failed to update payment for sale $sale_id ($payment_type)";
+          }
+        } else {
+          // Payment record doesn't exist - insert new one
+          $insertData = [
+            'sale_id' => $sale_id,
+            'payment_type' => $payment_type,
+            'payment_amount' => $payment_amount,
+            'payment_time' => date('Y-m-d H:i:s')
+          ];
+          
+          $result = $this->db->table('sales_payments')->insert($insertData);
+          
+          if ($result) {
+            $successCount++;
+          } else {
+            $failureCount++;
+            $errors[] = "Failed to create payment for sale $sale_id ($payment_type)";
+          }
+        }
+      }
+      
+      if ($successCount > 0 && $failureCount === 0) {
+        echo json_encode([
+          'success' => true,
+          'message' => "Successfully updated $successCount payment(s)",
+          'updated' => $successCount
+        ]);
+      } elseif ($successCount > 0) {
+        echo json_encode([
+          'success' => true,
+          'message' => "Updated $successCount payment(s) with $failureCount failure(s)",
+          'updated' => $successCount,
+          'failed' => $failureCount,
+          'errors' => $errors
+        ]);
+      } else {
+        echo json_encode([
+          'success' => false,
+          'message' => "Failed to update payments",
+          'failed' => $failureCount,
+          'errors' => $errors
+        ]);
+      }
+    } catch (\Exception $e) {
+      log_message('error', 'Bulk update payments error: ' . $e->getMessage());
+      echo json_encode([
+        'success' => false,
+        'message' => 'Error updating payments: ' . $e->getMessage()
+      ]);
+    }
   }
 
   /**
@@ -2817,10 +2931,19 @@ class Sales extends Secure_Controller
         $vehicle_info = $vehicle->find($vehicle_id);
       }
       // Get sale info using the existing method
-      $sale_info = $this->sale->get_info($sale_id)->getRowArray();
-
-      // Get employee info
-      $employee_info = $this->employee->get_info($sale_info['employee_id']);
+      $sale_info_result = $this->sale->get_info($sale_id);
+      if (!$sale_info_result) {
+        continue; // Skip this sale if it cannot be found
+      }
+      $sale_info = $sale_info_result->getRowArray();
+      if (!$sale_info) {
+        continue; // Skip this sale if it cannot be found
+      }
+      // Get employee info with null check
+      $employee_info = null;
+      if (!empty($sale_info['employee_id'])) {
+        $employee_info = $this->employee->get_info($sale_info['employee_id']);
+      }
 
       // Get sale items using the existing method
       $sale_items_query = $this->sale->get_sale_items($sale_id);
@@ -2837,7 +2960,7 @@ class Sales extends Secure_Controller
         $line_total = $quantity * $unit_price;
 
         if ($discount > 0) {
-          if ($discount_type == PERCENTAGE) {
+          if ($discount_type == PERCENT) {
             $discount_amount = $line_total * ($discount / 100);
           } else {
             $discount_amount = $discount;
@@ -2852,7 +2975,6 @@ class Sales extends Secure_Controller
       // Get payments using the existing method
       $payments_query = $this->sale->get_sale_payments($sale_id);
       $payments = $payments_query->getResultArray();
-
       // Build the sale array
       $sale = [
         'sale_id' => $sale_id,
@@ -2860,8 +2982,8 @@ class Sales extends Secure_Controller
         'sale_status' => $sale_info['sale_status'],
         'invoice_number' => $sale_info['invoice_number'],
         'quote_number' => $sale_info['quote_number'],
-        'employee_first_name' => $employee_info->first_name,
-        'employee_last_name' => $employee_info->last_name,
+        'employee_first_name' => $employee_info?->first_name ?? 'Unknown',
+        'employee_last_name' => $employee_info?->last_name ?? 'Unknown',
         'sale_total' => $sale_total,
         'items' => $sale_items,
         'payments' => $payments,

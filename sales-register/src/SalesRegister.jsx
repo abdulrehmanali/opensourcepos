@@ -14,8 +14,20 @@ const SalesRegister = ({
 	selected_vehicle_no = "",
 	categories = {},
 }) => {
-	// const BASE_URL = "http://localhost/public";
-  const BASE_URL =  "http://localhost:8888/opensourcepos/public";
+	// Dynamically construct BASE_URL from current location
+	// Finds /public in the pathname and uses everything up to and including it
+	const getBaseUrl = () => {
+		const pathname = window.location.pathname;
+		const publicIndex = pathname.indexOf('/public');
+		if (publicIndex !== -1) {
+			const basePath = pathname.substring(0, publicIndex + '/public'.length);
+			return `${window.location.protocol}//${window.location.host}${basePath}`;
+		}
+		// Fallback: assume /public is at root
+		return `${window.location.protocol}//${window.location.host}/public`;
+	};
+
+	const BASE_URL = getBaseUrl();
 	// State management
 	const [vehicleNo, setVehicleNo] = useState(selected_vehicle_no || "");
 	const [customerName, setCustomerName] = useState("");
@@ -31,7 +43,7 @@ const SalesRegister = ({
 	const [notifications, setNotifications] = useState([]);
 	const [cartItems, setCartItems] = useState(cart || []);
 	const [currentCustomerId, setCurrentCustomerId] = useState(customer_id);
-
+	const [customerNote, setCustomerNote] = useState("");
 	// Form states
 	const [itemSearch, setItemSearch] = useState("");
 	const [itemId, setItemId] = useState("");
@@ -182,7 +194,7 @@ const SalesRegister = ({
 							// Track this vehicle as loaded
 							lastLoadedVehicleNo.current = vehicle.vehicle_no;
 
-							setVehicleKilometer(vehicle.kilometer || "");
+							// setVehicleKilometer(vehicle.kilometer || "");
 							setVehicleAvgOilKm(vehicle.last_avg_oil_km || "");
 							setVehicleAvgKmDay(vehicle.last_avg_km_day || "");
 							setVehicleNextVisit(vehicle.last_next_visit || "");
@@ -314,6 +326,7 @@ const SalesRegister = ({
 				setCurrentCustomerId(cust.person_id);
 				setCustomerName(cust.full_name || `${cust.first_name} ${cust.last_name}`);
 				setPhoneNumber(cust.phone_number || "");
+				setCustomerNote(cust.note || "");
 
 				// If backend returned vehicle info, pre-fill vehicle fields as well
 				if (response.data.vehicle) {
@@ -321,7 +334,7 @@ const SalesRegister = ({
 					// Only populate vehicle fields if a vehicle isn't already selected in the UI.
 					if (!vehicleNo) {
 						setVehicleNo(v.vehicle_no || "");
-						setVehicleKilometer(v.kilometer || "");
+						// setVehicleKilometer(v.kilometer || "");
 						setVehicleAvgOilKm(v.last_avg_oil_km || "");
 						setVehicleAvgKmDay(v.last_avg_km_day || "");
 						setVehicleNextVisit(v.last_next_visit || "");
@@ -879,6 +892,14 @@ const SalesRegister = ({
 				// Refresh cart data instead of reloading page
 				refreshCartData();
 				showNotification("Item added to cart successfully", "success");
+				
+				// Focus on Product Name field
+				setTimeout(() => {
+					if (itemInputRef.current) {
+						itemInputRef.current.querySelector("input")?.focus();
+						itemInputRef.current.querySelector("input")?.select();
+					}
+				}, 0);
 			} catch (err) {
 				console.error("Error adding item to cart:", err);
 				showNotification("Error adding item to cart", "danger");
@@ -1162,7 +1183,7 @@ const SalesRegister = ({
 									vehicle_avg_oil_km: s.vehicle_avg_oil_km,
 									vehicle_avg_km_day: s.vehicle_avg_km_day,
 								});
-								setVehicleKilometer(s.vehicle_kilometer || 0);
+								// setVehicleKilometer(s.vehicle_kilometer || 0);
 								setVehicleAvgOilKm(s.vehicle_avg_oil_km || 0);
 								setVehicleAvgKmDay(s.vehicle_avg_km_day || 0);
 							}
@@ -1291,6 +1312,7 @@ const SalesRegister = ({
 			params.append("vehicle_next_visit", vehicleNextVisit || "");
 			params.append("mechanic_name", mechanicName || "");
 			params.append("comment", comment || "");
+			params.append("customer_note", customerNote || "");
 			params.append("customer_id", currentCustomerId || -1);
 
 			axios
@@ -1309,6 +1331,7 @@ const SalesRegister = ({
 		vehicleNextVisit,
 		mechanicName,
 		comment,
+		customerNote,
 		currentCustomerId,
 		controller_name,
 		BASE_URL,
@@ -1423,6 +1446,9 @@ const SalesRegister = ({
 							price: payload.price,
 							single_unit_quantity: payload.single_unit_quantity ?? 1,
 							pack_name: payload.pack_name ?? payload.unit_name ?? "pcs",
+              last_sale_price: payload.last_sale_price ?? "",
+              last_sale_quantity: payload.last_sale_quantity ?? "",
+              last_sale_total: payload.last_sale_total ?? "",
 						});
 						setItemSearch(sel.label);
 						setItemId(sel.id ?? "");
@@ -1496,11 +1522,11 @@ const SalesRegister = ({
 				))}
 			</div>
 			<div className="row">
-				<div id="register_wrapper" className="col-sm-7">
+				<div id="register_wrapper" className="col-sm-6">
 					<div className="panel-body">
             <div className="row">
               <div className="col-sm-4">
-								<div className="form-group d-flex">
+								<div className="form-group">
 									<label className="control-label" style={{minWidth:'80px'}}>
 										Mechanic
 									</label>
@@ -1513,7 +1539,7 @@ const SalesRegister = ({
 										tabIndex={getNextTabIndex()}
 									/>
 								</div>
-                <div className="form-group d-flex">
+                <div className="form-group">
 									<label className="control-label" style={{minWidth:'80px'}}>
 										Vehicle #
 									</label>
@@ -1531,21 +1557,47 @@ const SalesRegister = ({
 										{vehicleNo && <option value={vehicleNo}>{vehicleNo}</option>}
 									</select>
 								</div>
-                <div className="form-group d-flex">
-									<label className="control-label" style={{minWidth:'80px'}}>
-										Kilometer
-									</label>
-									<input
-										type="number"
-										className="form-control input-sm"
-										value={vehicleKilometer}
-										onChange={(e) => setVehicleKilometer(e.target.value)}
-										tabIndex={getNextTabIndex()}
-									/>
-								</div>
+                <div className="form-group">
+                  <label className="control-label" style={{minWidth:'80px'}}>
+                    Bill Comments
+                  </label>
+                  <textarea
+                    className="form-control input-sm"
+                    rows="3"
+                    value={comment}
+                    onChange={(e) => {
+                      const today = new Date().toLocaleDateString('en-PK', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                      const datePrefix = `[${today}] `;
+                      const newValue = e.target.value;
+                      
+                      // If value is empty, keep it empty
+                      if (!newValue) {
+                        setComment("");
+                        return;
+                      }
+                      
+                      // If it already starts with today's date, keep it as is
+                      if (newValue.startsWith(datePrefix)) {
+                        setComment(newValue);
+                      }
+                      // If it has a date prefix but different date, replace it
+                      else if (newValue.match(/^\[\d{2}\/\d{2}\/\d{4}\]\s/)) {
+                        const textAfterDate = newValue.replace(/^\[\d{2}\/\d{2}\/\d{4}\]\s/, '');
+                        setComment(`${datePrefix}${textAfterDate}`);
+                      }
+                      // If no date prefix, add today's date
+                      else {
+                        setComment(`${datePrefix}${newValue}`);
+                      }
+                    }}
+                    placeholder="Add any bill comments or notes"
+                    style={{ resize: "vertical" }}
+                    tabIndex={getNextTabIndex()}
+                  />
+                </div>
               </div>
               <div className="col-sm-4">
-								<div className="form-group d-flex">
+								<div className="form-group ">
 									<label className="control-label" style={{minWidth:'80px'}}>
 										Customer
 									</label>
@@ -1563,7 +1615,7 @@ const SalesRegister = ({
 										{customerName && <option value={customerName}>{customerName}</option>}
 									</select>
 								</div>
-								<div className="form-group d-flex">
+								<div className="form-group">
 									<label className="control-label" style={{minWidth:'80px'}}>
 										Phone #
 									</label>
@@ -1581,31 +1633,31 @@ const SalesRegister = ({
 										{phoneNumber && <option value={phoneNumber}>{phoneNumber}</option>}
 									</select>
 								</div>
-                <div className="form-group d-flex">
+                <div className="form-group">
                   <label className="control-label" style={{minWidth:'80px'}}>
-                    Comments
+                    Customer Note / Permanent
                   </label>
                   <textarea
                     className="form-control input-sm"
                     rows="3"
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="Add any comments or notes"
+                    value={customerNote}
+                    onChange={(e) => setCustomerNote(e.target.value)}
+                    placeholder="Add internal notes about this customer"
                     style={{ resize: "vertical" }}
                     tabIndex={getNextTabIndex()}
                   />
                 </div>
               </div>
               <div className="col-sm-4">
-								<div className="form-group d-flex">
+                <div className="form-group d-flex">
 									<label className="control-label" style={{minWidth:'80px'}}>
-										Avg KM / Day
+										Kilometer
 									</label>
 									<input
 										type="number"
 										className="form-control input-sm"
-										value={vehicleAvgKmDay}
-										onChange={(e) => setVehicleAvgKmDay(e.target.value)}
+										value={vehicleKilometer}
+										onChange={(e) => setVehicleKilometer(e.target.value)}
 										tabIndex={getNextTabIndex()}
 									/>
 								</div>
@@ -1613,7 +1665,8 @@ const SalesRegister = ({
 									<label className="control-label" style={{minWidth:'80px'}}>
 										Avg KM / Oil
 									</label>
-									<input
+                  <div style={{flexDirection:'column'}}>
+                    <input
 										type="number"
 										className="form-control input-sm"
 										value={vehicleAvgOilKm}
@@ -1625,6 +1678,19 @@ const SalesRegister = ({
 											{calculatedAvgPerDay}
 										</div>
 									)}
+                  </div>
+								</div>
+                <div className="form-group d-flex">
+									<label className="control-label" style={{minWidth:'80px'}}>
+										Avg KM / Day
+									</label>
+									<input
+										type="number"
+										className="form-control input-sm"
+										value={vehicleAvgKmDay}
+										onChange={(e) => setVehicleAvgKmDay(e.target.value)}
+										tabIndex={getNextTabIndex()}
+									/>
 								</div>
                 <div className="form-group d-flex">
 									<label className="control-label" style={{minWidth:'80px'}}>
@@ -1679,6 +1745,11 @@ const SalesRegister = ({
 									</div>
 									<div>
 										<label className="control-label">Price</label>
+                    {lastSalePrice && (
+											<small style={{ color: "#666", display: "block", fontSize: "11px", marginBottom:"-19px" }}>
+												Rs {parseFloat(lastSalePrice).toFixed(2)}
+											</small>
+										)}
 										<input
 											type="number"
 											className="form-control input-sm"
@@ -1688,11 +1759,6 @@ const SalesRegister = ({
 											required
 											tabIndex={getNextTabIndex()}
 										/>
-										{lastSalePrice && (
-											<small style={{ color: "#666", display: "block", fontSize: "11px", marginBottom:"-19px" }}>
-												Rs {parseFloat(lastSalePrice).toFixed(2)}
-											</small>
-										)}
 									</div>
 									<div>
 										{/* <label className="control-label">Discount</label> */}
@@ -2229,7 +2295,7 @@ const SalesRegister = ({
 				</div>
 
 				{/* Customer Sales History */}
-				<div className="col-sm-5">
+				<div className="col-sm-6">
 					<div style={{ marginTop: "2em" }}>
 						<h4>Customer Sales History</h4>
 						{isLoadingHistory && (
@@ -2239,13 +2305,16 @@ const SalesRegister = ({
 						)}
 						<div>
 							{customerSalesHistory.length > 0 ? (
-								<table className="table table-bordered table-striped">
+								<table className="table table-bordered table-striped" style={{fontSize:'10px'}}>
 									<thead>
 										<tr>
-											<th>ID #</th>
+											<th>#</th>
 											<th>Date</th>
 											<th>Product</th>
-											<th>Kilometer</th>
+                      <th>Price</th>
+                      <th>QT</th>
+                      <th>Total</th>
+											<th>KM</th>
 											<th>Avg Oil KM</th>
 											<th>Avg KM/Day</th>
 										</tr>
@@ -2257,6 +2326,9 @@ const SalesRegister = ({
 													<td>{sale.sale_id || ""}</td>
 													<td>{sale.sale_time || ""}</td>
 													<td>{item.name || ""}</td>
+                          <td>{item.item_cost_price || ""}</td>
+                          <td>{item.quantity || ""}</td>
+                          <td>{(item.item_cost_price * item.quantity) || ""}</td>
 													<td>{sale.vehicle_kilometer || ""}</td>
 													<td>{sale.vehicle_avg_oil_km || ""}</td>
 													<td>{sale.vehicle_avg_km_day || ""}</td>
