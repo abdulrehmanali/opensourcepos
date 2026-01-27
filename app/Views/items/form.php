@@ -125,6 +125,9 @@
           <small id="per_unit_price" class="form-text text-muted">
             <?= !empty($price_per_unit) ? "Per $selected_unit price: $price_per_unit" : '' ?>
           </small>
+          <small id="profit_percentage" class="form-text text-muted">
+            <?= !empty($profit_percentage) ? "Profit: $profit_percentage" : '' ?>
+          </small>
         </div>
         <div class='col-xs-4'>
           <select name="pack_name" class="form-control input-sm" id="pack_name">
@@ -175,9 +178,6 @@
               <span class="input-group-addon input-sm"><b><?= esc($config['currency_symbol']) ?></b></span>
             <?php endif; ?>
           </div>
-          <small id="profit_percentage" class="form-text text-muted">
-            <?= !empty($profit_percentage) ? "Profit: $profit_percentage" : '' ?>
-          </small>
         </div>
       </div>
       <?php
@@ -1236,16 +1236,21 @@
       const unitSelect = document.querySelector('select[name="pack_name"]');
       const helper = document.getElementById("per_unit_price");
       const costPriceInput = document.querySelector('input[name="cost_price"]');
+      const singleUnitQtyInput = document.querySelector('input[name="single_unit_quantity"]');
       const profitHelper = document.getElementById("profit_percentage");
 
-      if (unitPriceInput && qtyPerPackInput && unitSelect && helper) {
+      if (unitPriceInput && unitSelect && helper) {
         function updateHelper() {
           const price = parseFloat(unitPriceInput.value) || 0;
-          const qty = parseFloat(qtyPerPackInput.value) || 0;
+          const qty = parseFloat(qtyPerPackInput ? qtyPerPackInput.value : 0) || 0;
+          const singleQty = parseFloat(singleUnitQtyInput ? singleUnitQtyInput.value : 0) || 0;
           const unit = unitSelect.value || 'unit';
 
-          if (qty > 0) {
-            const perUnit = (price / qty).toFixed(2);
+          // Use qty_per_pack if available, otherwise use single_unit_quantity
+          const divisor = qty > 0 ? qty : singleQty;
+
+          if (divisor > 0) {
+            const perUnit = (price / divisor).toFixed(2);
             helper.textContent = 'Per ' + unit + ' price: ' + perUnit;
           } else {
             helper.textContent = '';
@@ -1253,8 +1258,10 @@
         }
 
         unitPriceInput.addEventListener("input", updateHelper);
-        qtyPerPackInput.addEventListener("input", updateHelper);
+        if (qtyPerPackInput) qtyPerPackInput.addEventListener("input", updateHelper);
         unitSelect.addEventListener("change", updateHelper);
+        if (costPriceInput) costPriceInput.addEventListener("input", updateHelper);
+        if (singleUnitQtyInput) singleUnitQtyInput.addEventListener("input", updateHelper);
 
         updateHelper();
       }
@@ -1267,15 +1274,7 @@
 
           if (cost > 0) {
             const profit = ((price - cost) / cost) * 100;
-            profitHelper.textContent = 'Profit: ' + profit.toFixed(2) + '%';
-            // Color coding: green for positive profit, red for loss
-            if (profit > 0) {
-              profitHelper.style.color = '#28a745';
-            } else if (profit < 0) {
-              profitHelper.style.color = '#dc3545';
-            } else {
-              profitHelper.style.color = '#666';
-            }
+            profitHelper.textContent = profit.toFixed(2) + '%';
           } else {
             profitHelper.textContent = '';
           }
