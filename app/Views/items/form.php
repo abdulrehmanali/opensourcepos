@@ -64,6 +64,15 @@
   #product_search {
     margin-bottom: 15px;
   }
+
+  #item_image_preview {
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+  }
+
+  #item_image_preview:hover {
+    opacity: 0.8;
+  }
 </style>
 <ul id="error_message_box" class="error_message_box"></ul>
 <div class="row">
@@ -447,10 +456,10 @@
       <div class="form-group form-group-sm">
         <?= form_label(lang('Items.image'), 'items_image', ['class' => 'control-label col-xs-3']) ?>
         <div class='col-xs-8'>
-          <div class="fileinput <?= $logo_exists ? 'fileinput-exists' : 'fileinput-new' ?>" data-provides="fileinput">
+          <div class="fileinput <?= !empty($image_path) ? 'fileinput-exists' : 'fileinput-new' ?>" data-provides="fileinput">
             <div class="fileinput-new thumbnail" style="width: 100px; height: 100px;"></div>
             <div class="fileinput-preview fileinput-exists thumbnail" style="max-width: 100px; max-height: 100px;">
-              <img data-src="holder.js/100%x100%" alt="<?= lang('Items.image') ?>"
+              <img id="item_image_preview" data-src="holder.js/100%x100%" alt="<?= lang('Items.image') ?>"
                 src="<?= $image_path ?>"
                 style="max-height: 100%; max-width: 100%;">
             </div>
@@ -469,8 +478,12 @@
       <div class="form-group form-group-sm">
         <?= form_label(lang('Items.pdf'), 'items_pdf', ['class' => 'control-label col-xs-3']) ?>
         <div class='col-xs-8'>
-          <div class="fileinput <?= $logo_exists ? 'fileinput-exists' : 'fileinput-new' ?>" data-provides="fileinput">
-            <?= $pdf_path ? "<a href='" . lang('Items.view_pdf') . "'></a>" : '' ?>
+          <div class="fileinput <?= !empty($pdf_path) ? 'fileinput-exists' : 'fileinput-new' ?>" data-provides="fileinput">
+            <?php if ($pdf_path): ?>
+              <a href="<?= $pdf_path ?>" class="btn btn-default btn-sm" target="_blank">
+                <span class="glyphicon glyphicon-file"></span> <?= lang('Items.view_pdf') ?>
+              </a>
+            <?php endif; ?>
             <div>
               <span class="btn btn-default btn-sm btn-file">
                 <span class="fileinput-new"><?= lang('Items.select_pdf') ?></span>
@@ -565,6 +578,9 @@
     <div class="text-center">
       <button class="btn btn-primary btn-block" id="submit">Submit</button>
     </div>
+    <?php if (isset($duplicate_from_id)): ?>
+      <?= form_hidden('duplicate_from_id', (string)$duplicate_from_id) ?>
+    <?php endif; ?>
     <?= form_close() ?>
   </div>
   <div class="col-sm-6">
@@ -613,6 +629,22 @@
   </div>
 </div>
 
+<!-- Image Preview Modal -->
+<div id="imageModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="imageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+        <h4 class="modal-title" id="imageModalLabel"><?= lang('Items.image') ?></h4>
+      </div>
+      <div class="modal-body text-center">
+        <img id="modalImageContent" src="" alt="<?= lang('Items.image') ?>" style="max-width: 100%; max-height: 80vh;">
+      </div>
+    </div>
+  </div>
+</div>
 
 <script type="application/javascript">
   //validation and submit handling
@@ -1285,5 +1317,23 @@
 
         updateProfitPercentage();
       }
+
+      // Image preview modal functionality
+      document.addEventListener('DOMContentLoaded', function() {
+        const imagePreview = document.getElementById('item_image_preview');
+        const imageModal = document.getElementById('imageModal');
+        const modalImageContent = document.getElementById('modalImageContent');
+
+        if (imagePreview && imageModal) {
+          imagePreview.addEventListener('click', function() {
+            const imageSrc = this.getAttribute('src');
+            if (imageSrc) {
+              modalImageContent.setAttribute('src', imageSrc);
+              $(imageModal).modal('show');
+            }
+          });
+        }
+      });
+
 </script>
 <?= view('partial/footer') ?>
