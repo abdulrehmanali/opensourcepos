@@ -794,6 +794,40 @@ class Items extends Secure_Controller
 			$item_data['pdf_filename'] = $upload_pdf['raw_name'] . '.' . $upload_pdf['file_ext'];
 		}
 
+		// Check if this is a duplicate operation and copy files if user hasn't uploaded new ones
+		$duplicate_from_id = $this->request->getPost('duplicate_from_id');
+		if ($duplicate_from_id && $item_id === NEW_ENTRY) {
+			$original_item = $this->item->get_info($duplicate_from_id);
+			
+			// Copy image if user didn't upload a new one
+			if (!isset($item_data['pic_filename']) && $original_item->pic_filename) {
+				$original_image_files = glob(FCPATH . 'uploads/item_pics/' . $original_item->pic_filename . '*');
+				if (!empty($original_image_files)) {
+					$original_file = $original_image_files[0];
+					$file_extension = pathinfo($original_file, PATHINFO_EXTENSION);
+					$new_image_name = uniqid('item_') . '.' . $file_extension;
+					$new_image_path = FCPATH . 'uploads/item_pics/' . $new_image_name;
+					if (copy($original_file, $new_image_path)) {
+						$item_data['pic_filename'] = $new_image_name;
+					}
+				}
+			}
+			
+			// Copy PDF if user didn't upload a new one
+			if (!isset($item_data['pdf_filename']) && $original_item->pdf_filename) {
+				$original_pdf_files = glob(FCPATH . 'uploads/item_pdf/' . $original_item->pdf_filename . '*');
+				if (!empty($original_pdf_files)) {
+					$original_file = $original_pdf_files[0];
+					$file_extension = pathinfo($original_file, PATHINFO_EXTENSION);
+					$new_pdf_name = uniqid('item_') . '.' . $file_extension;
+					$new_pdf_path = FCPATH . 'uploads/item_pdf/' . $new_pdf_name;
+					if (copy($original_file, $new_pdf_path)) {
+						$item_data['pdf_filename'] = $new_pdf_name;
+					}
+				}
+			}
+		}
+
 		$employee_id = $this->employee->get_logged_in_employee_info()->person_id;
 
     $item_data['single_unit_quantity'] = $this->request->getPost('single_unit_quantity') ?? 0;
@@ -877,8 +911,6 @@ class Items extends Secure_Controller
 					$success &= $this->inventory->insert($inv_data, false);
 				}
 			}
-      error_log($item_id);
-      error_log('saveItemAttributes');
 			$this->saveItemAttributes($item_id);
 
       // Insert item categories into item_categories table
@@ -978,13 +1010,10 @@ class Items extends Secure_Controller
 		helper(['form']);
 		$validation_rule = [
 			'items_pdf' => [
-				'label' => 'Item Image',
+				'label' => 'Item PDF',
 				'rules' => [
-					'is_image[items_pdf]',
-					'max_size[items_pdf,' . $this->config['image_max_size'] . ']',
 					'mime_in[items_pdf,application/pdf]',
-					'ext_in[items_pdf,' . $this->config['image_allowed_types'] . ']',
-					'max_dims[items_pdf,' . $this->config['image_max_width'] . ',' . $this->config['image_max_height'] . ']'
+					'ext_in[items_pdf,pdf]'
 				]
 			]
 		];
@@ -1004,7 +1033,7 @@ class Items extends Secure_Controller
 		];
 
     try {
-      $file->move(FCPATH . 'uploads/item_pdfs/', $file_info['raw_name'] . '.' . $file_info['file_ext'], true);
+      $file->move(FCPATH . 'uploads/item_pdf/', $file_info['raw_name'] . '.' . $file_info['file_ext'], true);
 		  return ($file_info);
     } catch (\Throwable $th) {
       error_log($th);
