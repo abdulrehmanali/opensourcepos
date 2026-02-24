@@ -418,6 +418,7 @@ function get_items_manage_table_headers(): string
     $definition_names = $attribute->get_definitions_by_flags($attribute::SHOW_IN_ITEMS);    //TODO: this should be made into a constant in constants.php
 
     $headers = [
+      ['checkbox' => true],
       ['view' => '', 'escape' => false],
       ['duplicate' => '', 'escape' => false],
       ['inventory' => '', 'escape' => false],

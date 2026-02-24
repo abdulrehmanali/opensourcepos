@@ -109,8 +109,13 @@
 
     var enable_actions = function(callback) {
         return function() {
-            var selection_empty = selected_rows().length == 0;
-            $("#toolbar button:not(.dropdown-toggle)").attr('disabled', selection_empty);
+            var selections = selected_rows();
+            var selection_empty = !selections || selections.length == 0;
+            if (selection_empty) {
+                $("#toolbar button:not(.dropdown-toggle)").prop('disabled', true).attr('disabled', 'disabled');
+            } else {
+                $("#toolbar button:not(.dropdown-toggle)").prop('disabled', false).removeAttr('disabled');
+            }
             typeof callback == 'function' && callback();
         }
     };
@@ -126,7 +131,7 @@
     };
 
     var selected_rows = function () {
-        return $("#table td input:checkbox:checked").parents("tr");
+        return table().getSelections();
     };
 
     var row_selector = function(id) {
