@@ -266,10 +266,89 @@ class Items extends Secure_Controller
 	}
 
 	/**
+	 * Display item details in read-only mode
+	 *
 	 * @param int $item_id
 	 * @return void
 	 */
-	public function getView(int $item_id = NEW_ENTRY, bool $is_duplicate = false): void	//TODO: Long function. Perhaps we need to refactor out some methods.
+	public function getView(int $item_id = NEW_ENTRY): void
+	{
+		$db = db_connect();
+		$item_info = $this->item->get_info($item_id);
+
+		$data['item_info'] = $item_info;
+		$data['definition_values'] = $this->attribute->get_attributes_by_item($item_id);
+		$data['definition_names'] = $this->attribute->get_definition_names();
+		$data['include_hsn'] = $this->config['include_hsn'] === '1';
+
+		// Get item image
+		$data['logo_exists'] = $item_info->pic_filename !== null;
+		if($item_info->pic_filename != null)
+		{
+			$file_extension = pathinfo($item_info->pic_filename, PATHINFO_EXTENSION);
+			if(empty($file_extension))
+			{
+				$images = glob("./uploads/item_pics/$item_info->pic_filename.*");
+			}
+			else
+			{
+				$images = glob("./uploads/item_pics/$item_info->pic_filename");
+			}
+			$data['image_path'] = sizeof($images) > 0 ? base_url($images[0]) : '';
+		}
+		else
+		{
+			$data['image_path'] = '';
+		}
+
+		// Get item PDF
+		if($item_info->pdf_filename != null)
+		{
+			$file_extension = pathinfo($item_info->pdf_filename, PATHINFO_EXTENSION);
+			if(empty($file_extension))
+			{
+				$pdfs = glob("./uploads/item_pdf/$item_info->pdf_filename.*");
+			}
+			else
+			{
+				$pdfs = glob("./uploads/item_pdf/$item_info->pdf_filename");
+			}
+			$data['pdf_path'] = sizeof($pdfs) > 0 ? base_url($pdfs[0]) : '';
+		}
+		else
+		{
+			$data['pdf_path'] = '';
+		}
+
+		// Get stock quantities
+		$data['stock_locations'] = [];
+		$stock_locations = $this->stock_location->get_undeleted_all()->getResultArray();
+		foreach($stock_locations as $location)
+		{
+			$quantity = $this->item_quantity->get_item_quantity($item_id, $location['location_id'])->quantity;
+			$data['stock_locations'][$location['location_id']] = [
+				'location_name' => $location['location_name'],
+				'quantity' => $quantity
+			];
+		}
+
+		// Get item categories
+		$category_results = $db->table('item_categories')->where('item_id', $item_id)->get()->getResultArray();
+		$data['categories'] = array_column($category_results, 'name');
+
+		// Get tax information
+		$data['item_tax_info'] = $this->item_taxes->get_info($item_id);
+		echo view('items/view', $data);
+	}
+
+	/**
+	 * Display item form for editing
+	 *
+	 * @param int $item_id
+	 * @param bool $is_duplicate
+	 * @return void
+	 */
+	public function getEdit(int $item_id = NEW_ENTRY, bool $is_duplicate = false): void	//TODO: Long function. Perhaps we need to refactor out some methods.
 	{
 		$item_id ??= NEW_ENTRY;
 
@@ -1684,7 +1763,7 @@ class Items extends Secure_Controller
 	 */
 	public function getDuplicate(int $item_id): void
 	{
-		$this->getView($item_id, true);
+		$this->getEdit($item_id, true);
 	}
 
 	/**

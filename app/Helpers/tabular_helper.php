@@ -35,11 +35,6 @@ function transform_headers(array $headers, bool $readonly = false, bool $editabl
 {
     $result = [];
 
-    if($editable)
-    {
-        $headers[] = ['edit' => ''];
-    }
-
     foreach($headers as $element)    //TODO: This might be clearer to refactor this to `foreach($headers as $header)`
     {
         reset($element);
@@ -422,8 +417,14 @@ function get_items_manage_table_headers(): string
     $config = config(OSPOS::class)->settings;
     $definition_names = $attribute->get_definitions_by_flags($attribute::SHOW_IN_ITEMS);    //TODO: this should be made into a constant in constants.php
 
-    $headers = item_headers();
-
+    $headers = [
+      ['view' => '', 'escape' => false],
+      ['duplicate' => '', 'escape' => false],
+      ['inventory' => '', 'escape' => false],
+      ['stock' => '', 'escape' => false],
+      ['edit' => '', 'escape' => false]
+    ];
+    $headers = array_merge($headers, item_headers());
     if($config['use_destination_based_tax'])
     {
         $headers[] = ['tax_percents' => lang('Items.tax_category'), 'sortable' => false];
@@ -438,12 +439,8 @@ function get_items_manage_table_headers(): string
 
     foreach($definition_names as $definition_id => $definition_name)
     {
-        $headers[] = [$definition_id => $definition_name, 'sortable' => false];
+      $headers[] = [$definition_id => $definition_name, 'sortable' => false];
     }
-    $headers[] = ['duplicate' => '', 'escape' => false];
-    $headers[] = ['inventory' => '', 'escape' => false];
-    $headers[] = ['stock' => '', 'escape' => false];
-
     return transform_headers($headers);
 }
 
@@ -524,6 +521,14 @@ function get_item_data_row(object $item): array
     ];
 
     $icons = [
+        'view' => anchor(
+            "$controller/view/$item->item_id",
+            '<span class="glyphicon glyphicon-eye-open"></span>',
+            [
+                'class' => '',
+                'title' => lang(ucfirst($controller) . ".view")
+            ]
+        ),
         'inventory' => anchor(
             "$controller/inventory/$item->item_id",
             '<span class="glyphicon glyphicon-pushpin"></span>',
@@ -542,7 +547,7 @@ function get_item_data_row(object $item): array
             ]
         ),
         'edit' => anchor(
-            "$controller/view/$item->item_id",
+            "$controller/edit/$item->item_id",
             '<span class="glyphicon glyphicon-edit"></span>',
             [
                 'class' => '',
@@ -559,7 +564,7 @@ function get_item_data_row(object $item): array
         )
     ];
 
-    return $columns + expand_attribute_values($definition_names, (array) $item) + $icons;
+    return $columns + $icons + expand_attribute_values($definition_names, (array) $item);
 }
 
 function giftcard_headers(): array
