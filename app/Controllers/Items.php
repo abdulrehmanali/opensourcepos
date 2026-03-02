@@ -1213,49 +1213,187 @@ class Items extends Secure_Controller
 	 */
 	public function postBulkUpdate(): void
 	{
-		$items_to_update = $this->request->getPost('item_ids');
-		$item_data = [];
+		// Support two formats:
+		// 1. Old format: item_ids array + shared fields (backwards compatible)
+		// 2. New format: items array with per-item data and custom attributes
 
-		foreach($_POST as $key => $value)
+		$items_data = $this->request->getPost('items');
+		$success = true;
+		$updated_count = 0;
+
+		// New format: items array with per-item edits
+		if (!empty($items_data) && is_array($items_data))
 		{
-			//This field is nullable, so treat it differently
-			if($key === 'supplier_id' && $value !== '')
+			foreach ($items_data as $item_edit)
 			{
-				$item_data[$key] = $value;
-			}
-			elseif($value !== '' && !(in_array($key, ['item_ids', 'tax_names', 'tax_percents'])))
-			{
-				$item_data[$key] = $value;
-			}
-		}
-
-		//Item data could be empty if tax information is being updated
-		if(empty($item_data) || $this->item->update_multiple($item_data, $items_to_update))
-		{
-			$items_taxes_data = [];
-			$tax_names = $this->request->getPost('tax_names');
-			$tax_percents = $this->request->getPost('tax_percents');
-			$tax_updated = false;
-
-			foreach($tax_percents as $tax_percent)
-			{
-				if(!empty($tax_names[$tax_percent]) && is_numeric($tax_percents[$tax_percent]))
+				$item_id = $item_edit['item_id'] ?? null;
+				if (empty($item_id))
 				{
-					$tax_updated = true;
-					$items_taxes_data[] = ['name' => $tax_names[$tax_percent], 'percent' => $tax_percents[$tax_percent]];
+					continue;
 				}
+
+				$item_data = [];
+				$attribute_data = [];
+
+				// Process each field in the item edit
+				foreach ($item_edit as $key => $value)
+				{
+					// Skip item_id and empty values
+					if ($key === 'item_id' || $value === '' || $value === null)
+					{
+						continue;
+					}
+
+					// Handle standard item fields
+					if (in_array($key, ['item_number', 'name', 'category', 'company_name', 'cost_price', 'unit_price', 'quantity', 'tax_percents', 'supplier_id']))
+					{
+						if ($key === 'supplier_id' || $value !== '')
+						{
+							// Convert formatted values back to numeric values
+							if ($key === 'cost_price' || $key === 'unit_price')
+							{
+								// Use parse_decimals with currency_decimals
+								$value = parse_decimals($value, config(OSPOS::class)->settings['currency_decimals']);
+							}
+							elseif ($key === 'quantity')
+							{
+								// Use parse_quantity for quantity values
+								$value = parse_quantity($value);
+							}
+							$item_data[$key] = $value;
+						}
+					}
+					else
+					{
+						// Assume it's a custom attribute (using definition name as key)
+						$attribute_data[$key] = $value;
+					}
+				}
+
+				// Update standard item fields
+				if (!empty($item_data))
+				{
+					if (!$this->item->update($item_id, $item_data))
+					{
+						$success = false;
+						continue;
+					}
+				}
+
+				// Update custom attributes
+				if (!empty($attribute_data))
+				{
+					$this->update_item_attributes($item_id, $attribute_data);
+				}
+
+				$updated_count++;
 			}
 
-			if($tax_updated)
+			if ($success)
 			{
-				$this->item_taxes->save_multiple($items_taxes_data, $items_to_update);
+				echo json_encode([
+					'success' => true,
+					'message' => lang('Items.successful_bulk_edit'),
+					'updated_count' => $updated_count
+				]);
 			}
-
-			echo json_encode (['success' => true, 'message' => lang('Items.successful_bulk_edit'), 'id' => $items_to_update]);
+			else
+			{
+				echo json_encode([
+					'success' => false,
+					'message' => lang('Items.error_updating_multiple')
+				]);
+			}
 		}
 		else
 		{
-			echo json_encode (['success' => false, 'message' => lang('Items.error_updating_multiple')]);
+			// Old format: backwards compatibility
+			$items_to_update = $this->request->getPost('item_ids');
+			$item_data = [];
+
+			foreach ($_POST as $key => $value)
+			{
+				//This field is nullable, so treat it differently
+				if ($key === 'supplier_id' && $value !== '')
+				{
+					$item_data[$key] = $value;
+				}
+				elseif ($value !== '' && !(in_array($key, ['item_ids', 'tax_names', 'tax_percents'])))
+				{
+					$item_data[$key] = $value;
+				}
+			}
+
+			//Item data could be empty if tax information is being updated
+			if (empty($item_data) || $this->item->update_multiple($item_data, $items_to_update))
+			{
+				$items_taxes_data = [];
+				$tax_names = $this->request->getPost('tax_names');
+				$tax_percents = $this->request->getPost('tax_percents');
+				$tax_updated = false;
+
+				foreach ($tax_percents as $tax_percent)
+				{
+					if (!empty($tax_names[$tax_percent]) && is_numeric($tax_percents[$tax_percent]))
+					{
+						$tax_updated = true;
+						$items_taxes_data[] = ['name' => $tax_names[$tax_percent], 'percent' => $tax_percents[$tax_percent]];
+					}
+				}
+
+				if ($tax_updated)
+				{
+					$this->item_taxes->save_multiple($items_taxes_data, $items_to_update);
+				}
+
+				echo json_encode(['success' => true, 'message' => lang('Items.successful_bulk_edit'), 'id' => $items_to_update]);
+			}
+			else
+			{
+				echo json_encode(['success' => false, 'message' => lang('Items.error_updating_multiple')]);
+			}
+		}
+	}
+
+	/**
+	 * Helper method to update item custom attributes
+	 * @param int $item_id
+	 * @param array $attribute_data Attribute name => value pairs
+	 * @return void
+	 */
+	private function update_item_attributes(int $item_id, array $attribute_data): void
+	{
+		$attribute_model = model(Attribute::class);
+		$definition_names = $attribute_model->get_definitions_by_flags($attribute_model::SHOW_IN_ITEMS);
+
+		// Create a reverse mapping from definition_name to definition_id
+		$name_to_id = array_flip($definition_names);
+
+		foreach ($attribute_data as $definition_name => $attribute_value)
+		{
+			// Skip if the attribute name doesn't exist
+			if (!isset($name_to_id[$definition_name]))
+			{
+				continue;
+			}
+
+			$definition_id = $name_to_id[$definition_name];
+
+			// Delete existing attribute value
+			$this->item->db->table('item_quantity')->delete([
+				'item_id' => $item_id,
+				'definition_id' => $definition_id
+			]);
+
+			// Insert new attribute value if not empty
+			if (!empty($attribute_value))
+			{
+				$this->item->db->table('item_quantity')->insert([
+					'item_id' => $item_id,
+					'definition_id' => $definition_id,
+					'quantity' => $attribute_value
+				]);
+			}
 		}
 	}
 

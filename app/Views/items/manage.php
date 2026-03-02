@@ -89,9 +89,14 @@ $(document).ready(function()
     function enable_inline_editing(selected_ids) {
         var table = $('#table').bootstrapTable('getData');
         
-        // Define which fields are editable based on the dropdown column menu
-        // Fields from your column dropdown that make sense to bulk edit:
-        var editableFields = [
+        // Define standard non-editable fields
+        var standardFields = [
+            'items.item_id', 'checkbox', 'view', 'duplicate', 'inventory', 
+            'stock', 'edit', 'item_pic'
+        ];
+        
+        // Define which standard fields are editable
+        var editableStandardFields = [
             'item_number',      // Barcode
             'name',             // Item Name
             'category',         // Category
@@ -99,11 +104,26 @@ $(document).ready(function()
             'cost_price',       // Wholesale Price
             'unit_price',       // Retail Price
             'quantity',         // Quantity
-            'tax_percents',     // Tax Percent(s)
-            '1', '3', '4', '5', '6', '7', '9', '10', '12'  // Custom attributes
+            'tax_percents'      // Tax Percent(s)
         ];
         
+        // Get all column fields from the table and extract custom attributes
+        var colHeaders = $('#table').bootstrapTable('getOptions').columns[0];
+        var customAttributeFields = [];
+        
+        colHeaders.forEach(function(col) {
+            var fieldName = col.field;
+            // If field is not standard and not in editable standard fields, it's a custom attribute
+            if (fieldName && !standardFields.includes(fieldName) && !editableStandardFields.includes(fieldName)) {
+                customAttributeFields.push(fieldName);
+            }
+        });
+        
+        // Combine editable standard fields with custom attributes
+        var editableFields = editableStandardFields.concat(customAttributeFields);
+        
         table.forEach(function(row) {
+          console.log(row)
             if (selected_ids.includes(row['items.item_id'])) {
                 var $row = $('tr[data-uniqueid="' + row['items.item_id'] + '"]');
                 $row.addClass('editing-mode');
@@ -117,15 +137,20 @@ $(document).ready(function()
                     var $cell = $(this);
                     var cellText = $cell.text().trim();
                     
-                    // Skip empty cells and action cells (first 5 columns with icons)
-                    if (cellIndex < 5 || cellText === '') {
+                    // Skip action cells (first 5 columns with icons)
+                    if (cellIndex < 5) {
                         return;
                     }
                     
                     // Get the corresponding header
-                    var headerIndex = cellIndex - 1;
+                    var headerIndex = cellIndex;
                     var fieldName = (headerIndex < colHeaders.length) ? colHeaders[headerIndex].field : null;
-                    
+                    console.log('Processing cell index:', cellIndex, 'Field name:', fieldName);
+                    if (fieldName == 'item_pic') {
+                        return;
+                    }
+                    console.log('Processed cell index:', cellIndex, 'Field name:', fieldName);
+
                     // Check if this field should be editable
                     if (fieldName && editableFields.includes(fieldName)) {
                         // Store original value
@@ -205,18 +230,8 @@ $(document).ready(function()
             return;
         }
         
-        // Prepare data - apply same values to all selected items
-        var post_data = { item_ids: item_ids };
-        
-        // Apply the first edited item's values to all (bulk update)
-        if (edits.length > 0) {
-            var firstEdit = edits[0];
-            ['name', 'category', 'cost_price', 'unit_price'].forEach(function(field) {
-                if (firstEdit[field]) {
-                    post_data[field] = firstEdit[field];
-                }
-            });
-        }
+        // Prepare data with per-item edits
+        var post_data = { items: edits };
         
         $.ajax({
             url: '<?= esc($controller_name) ?>/bulkUpdate',

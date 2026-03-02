@@ -1,5 +1,4 @@
 <?php
-
 /**
  * @var array $definition_names
  * @var array $definition_values
@@ -76,7 +75,7 @@ $desired_order = [
 ];
 
 // Normalizer: lowercase + remove spaces for loose matching
-$normalize = function($s) {
+$normalize = function ($s) {
   return strtolower(preg_replace('/\s+/', '', (string)$s));
 };
 
@@ -128,10 +127,10 @@ foreach ($ordered as $definition_id => $definition_value) {
             break;
           case DROPDOWN:
             // If values is an object (from API), convert to array; otherwise use as-is
-            $values_array = is_object($definition_value['values']) 
-              ? (array)$definition_value['values'] 
+            $values_array = is_object($definition_value['values'])
+              ? (array)$definition_value['values']
               : $definition_value['values'];
-            
+
             // Determine which value to select
             // First, check if attribute_value text exists in the values array (search by value, not key)
             $selected_key = '';
@@ -145,8 +144,7 @@ foreach ($ordered as $definition_id => $definition_value) {
             } elseif (!empty($definition_value['selected_value']) && isset($values_array[$definition_value['selected_value']])) {
               $selected_key = $definition_value['selected_value'];
             }
-            
-            $options = ['Select '.$definition_value['definition_name']] + $values_array;
+
             echo form_dropdown([
               'name' => "attribute_links[$definition_id]",
               'options' => $options,
@@ -293,7 +291,7 @@ foreach ($ordered as $definition_id => $definition_value) {
             // Replace the temporary tag with the one having the real ID
             const newOption = new Option(dataText, newId, true, true);
             $select.append(newOption).trigger('change');
-            
+
 
             // Remove the temporary option
             // console.log(data.text)
