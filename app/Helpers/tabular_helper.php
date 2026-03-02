@@ -440,7 +440,7 @@ function get_items_manage_table_headers(): string
 
     foreach($definition_names as $definition_id => $definition_name)
     {
-      $headers[] = [$definition_name => $definition_name, 'sortable' => false];
+      $headers[] = ['attribute_' . $definition_id => $definition_name, 'sortable' => false];
     }
     return transform_headers($headers);
 }
@@ -702,11 +702,11 @@ function expand_attribute_values(array $definition_names, array $row): array
         if(isset($indexed_values[$definition_id]))
         {
             $attribute_value = $indexed_values[$definition_id];
-            $attribute_values[$definition_name] = $attribute_value;
+            $attribute_values['attribute_' . $definition_id] = $attribute_value;
         }
         else
         {
-            $attribute_values[$definition_name] = "";
+            $attribute_values['attribute_' . $definition_id] = "";
         }
     }
 

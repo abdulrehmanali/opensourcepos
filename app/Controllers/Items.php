@@ -1364,35 +1364,61 @@ class Items extends Secure_Controller
 	private function update_item_attributes(int $item_id, array $attribute_data): void
 	{
 		$attribute_model = model(Attribute::class);
-		$definition_names = $attribute_model->get_definitions_by_flags($attribute_model::SHOW_IN_ITEMS);
 
-		// Create a reverse mapping from definition_name to definition_id
-		$name_to_id = array_flip($definition_names);
+		// Load full definition info (id, name, type) for all visible attributes
+		$definitions_result = $this->item->db->table('attribute_definitions')
+			->where('deleted', 0)
+			->where('definition_type <>', GROUP)
+			->get()->getResultArray();
 
-		foreach ($attribute_data as $definition_name => $attribute_value)
+		$definitions = [];
+		foreach ($definitions_result as $def)
 		{
-			// Skip if the attribute name doesn't exist
-			if (!isset($name_to_id[$definition_name]))
+			$definitions[$def['definition_id']] = $def;
+		}
+
+		// Create a reverse mapping from definition_name to definition_id (legacy fallback)
+		$name_to_id = array_column($definitions_result, 'definition_id', 'definition_name');
+
+		foreach ($attribute_data as $key => $attribute_value)
+		{
+			// Support new format: attribute_<id>
+			if (preg_match('/^attribute_(\d+)$/', $key, $matches))
+			{
+				$definition_id = (int) $matches[1];
+				if (!isset($definitions[$definition_id]))
+				{
+					continue;
+				}
+			}
+			// Fallback: legacy format using definition_name as key
+			elseif (isset($name_to_id[$key]))
+			{
+				$definition_id = (int) $name_to_id[$key];
+			}
+			else
 			{
 				continue;
 			}
 
-			$definition_id = $name_to_id[$definition_name];
+			$definition_type = $definitions[$definition_id]['definition_type'];
 
-			// Delete existing attribute value
-			$this->item->db->table('item_quantity')->delete([
-				'item_id' => $item_id,
-				'definition_id' => $definition_id
-			]);
+			// Delete the existing attribute link for this item + definition
+			$attribute_model->deleteAttributeLinks($item_id, $definition_id);
 
-			// Insert new attribute value if not empty
+			// Save the new value only if non-empty
 			if (!empty($attribute_value))
 			{
-				$this->item->db->table('item_quantity')->insert([
-					'item_id' => $item_id,
-					'definition_id' => $definition_id,
-					'quantity' => $attribute_value
-				]);
+				$existing_attribute_id = $attribute_model->attributeValueExists($attribute_value, $definition_type);
+
+				if (!$existing_attribute_id)
+				{
+					$attribute_model->saveAttributeValue($attribute_value, $definition_id, $item_id, false, $definition_type);
+				}
+				else
+				{
+					$attribute_model->saveAttributeLink($item_id, $definition_id, $existing_attribute_id);
+				}
 			}
 		}
 	}
