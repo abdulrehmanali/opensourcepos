@@ -76,6 +76,10 @@ class Items extends Secure_Controller
 		$data['stock_location'] = $this->item_lib->get_item_location();
 		$data['stock_locations'] = $this->stock_location->get_allowed_locations();
 
+		$db = db_connect();
+		$distinctCategories = $db->table('item_categories')->select('name')->distinct()->orderBy('name')->get()->getResultArray();
+		$data['categories'] = array_column($distinctCategories, 'name');
+
 		//Filters that will be loaded in the multiselect dropdown
 		$data['filters'] = [
 			'empty_upc' => lang('Items.empty_upc_items'),
@@ -1234,6 +1238,7 @@ class Items extends Secure_Controller
 
 				$item_data = [];
 				$attribute_data = [];
+				$categories = null;
 
 				// Process each field in the item edit
 				foreach ($item_edit as $key => $value)
@@ -1244,8 +1249,15 @@ class Items extends Secure_Controller
 						continue;
 					}
 
+					// Handle category separately (saved to item_categories table)
+					if ($key === 'category')
+					{
+						$categories = is_array($value) ? $value : array_filter(array_map('trim', explode(',', $value)));
+						continue;
+					}
+
 					// Handle standard item fields
-					if (in_array($key, ['item_number', 'name', 'category', 'company_name', 'cost_price', 'unit_price', 'quantity', 'tax_percents', 'supplier_id']))
+					if (in_array($key, ['item_number', 'name', 'company_name', 'cost_price', 'unit_price', 'quantity', 'tax_percents', 'supplier_id']))
 					{
 						if ($key === 'supplier_id' || $value !== '')
 						{
@@ -1277,6 +1289,20 @@ class Items extends Secure_Controller
 					{
 						$success = false;
 						continue;
+					}
+				}
+
+				// Update categories in item_categories table
+				if ($categories !== null)
+				{
+					$db = db_connect();
+					$db->table('item_categories')->where('item_id', $item_id)->delete();
+					foreach ($categories as $category)
+					{
+						if (!empty($category))
+						{
+							$db->table('item_categories')->insert(['item_id' => $item_id, 'name' => $category]);
+						}
 					}
 				}
 

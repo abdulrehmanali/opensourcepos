@@ -6,6 +6,7 @@
  * @var array $stock_locations
  * @var int $stock_location
  * @var array $config
+ * @var array $categories
  */
 
 use App\Models\Employee;
@@ -46,6 +47,8 @@ use App\Models\Employee;
 <?php endif; ?>
 
 <script type="application/javascript">
+var bulk_edit_categories = <?= json_encode(array_values($categories)) ?>;
+
 $(document).ready(function()
 {
     var editing_mode = false;
@@ -155,7 +158,51 @@ $(document).ready(function()
                     if (fieldName && editableFields.includes(fieldName)) {
                         // Store original value
                         $cell.data('original-value', cellText);
-                        
+
+                        if (fieldName === 'category') {
+                            // Build select2 multi-select for category
+                            var currentCategories = cellText ? cellText.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [];
+
+                            // Build option elements: include existing options + any current values not already listed
+                            var allOptions = bulk_edit_categories.slice();
+                            currentCategories.forEach(function(cat) {
+                                if (allOptions.indexOf(cat) === -1) { allOptions.push(cat); }
+                            });
+
+                            var optionsHtml = allOptions.map(function(cat) {
+                                return '<option value="' + cat.replace(/"/g, '&quot;') + '">' + cat + '</option>';
+                            }).join('');
+
+                            var selectHtml = '<select class="form-control editable-field editable-category" name="category" multiple="multiple" data-field="category" style="width:100%">' + optionsHtml + '</select>';
+                            $cell.html(selectHtml);
+                            $cell.addClass('editing-cell');
+
+                            var $select = $cell.find('.editable-category');
+                            $select.val(currentCategories).select2({
+                                multiple: true,
+                                tags: true,
+                                allowClear: true,
+                                placeholder: '<?= lang('Items.category') ?>',
+                                width: '100%',
+                                dropdownParent: $cell,
+                                createTag: function(params) {
+                                    var term = params.term.trim();
+                                    if (term === '') return null;
+                                    var capitalized = term.replace(/\b\w/g, function(l) { return l.toUpperCase(); });
+                                    return { id: capitalized, text: capitalized, newTag: true };
+                                }
+                            });
+
+                            $select.on('change', function() {
+                                var currentValue = $(this).val();
+                                var originalValue = $cell.data('original-value');
+                                var changed = JSON.stringify(currentValue) !== JSON.stringify(
+                                    originalValue ? originalValue.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : []
+                                );
+                                $cell.css(changed ? {'background-color': '#fff3cd', 'border': '2px solid #ffc107', 'padding': '2px'} : {'background-color': '', 'border': '', 'padding': ''});
+                            });
+
+                        } else {
                         // Determine input type based on field name
                         var inputType = 'text';
                         if (fieldName === 'cost_price' || fieldName === 'unit_price' || fieldName === 'quantity') {
@@ -193,6 +240,7 @@ $(document).ready(function()
                                 });
                             }
                         });
+                        } // end else (non-category fields)
                     }
                 });
             }
@@ -219,6 +267,7 @@ $(document).ready(function()
             $row.find('.editable-field').each(function() {
                 var $input = $(this);
                 var fieldName = $input.attr('name');
+                // select2 multi-selects return an array; send as-is so jQuery serializes correctly
                 editData[fieldName] = $input.val();
             });
             
@@ -258,9 +307,12 @@ $(document).ready(function()
             var $row = $(this);
             $row.find('.editing-cell').each(function() {
                 var $cell = $(this);
-                var $input = $cell.find('.editable-field');
+                // Destroy select2 before clearing the cell to avoid memory leaks
+                var $select2 = $cell.find('.editable-category');
+                if ($select2.length) {
+                    $select2.select2('destroy');
+                }
                 var originalValue = $cell.data('original-value');
-                
                 $cell.html(originalValue);
                 $cell.removeClass('editing-cell').css({
                     'background-color': '',
@@ -331,7 +383,7 @@ $(document).ready(function()
         <span class="glyphicon glyphicon-import">&nbsp;</span><?= lang('Common.import_csv') ?>
     </button>
 
-    <a class='btn btn-info btn-sm pull-right' href='<?= "$controller_name/view" ?>'
+    <a class='btn btn-info btn-sm pull-right' href='<?= "$controller_name/edit" ?>'
             title='<?= lang(ucfirst($controller_name) .".new") ?>'>
         <span class="glyphicon glyphicon-tag">&nbsp;</span><?= lang(ucfirst($controller_name) .".new") ?>
     </a>
