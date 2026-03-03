@@ -147,7 +147,7 @@ foreach ($ordered as $definition_id => $definition_value) {
 
             echo form_dropdown([
               'name' => "attribute_links[$definition_id]",
-              'options' => $options,
+              'options' => $values_array,
               'selected' => $selected_key !== '' ? $selected_key : '',
               'class' => 'form-control select-2-new-item-attributes',
               'data-definition-id' => $definition_id,

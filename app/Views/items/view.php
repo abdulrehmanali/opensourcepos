@@ -8,6 +8,8 @@
  * @var bool $logo_exists
  * @var string $image_path
  * @var string $pdf_path
+ * @var array $item_media_images
+ * @var array $item_media_pdfs
  * @var array $definition_values
  * @var array $definition_names
  * @var array $item_tax_info
@@ -380,6 +382,42 @@
           </div>
         <?php endif; ?>
       </div>
+
+      <!-- Additional Images Gallery -->
+      <?php if (!empty($item_media_images)): ?>
+        <div class="item-detail-section">
+          <div class="section-title">Additional Images</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            <?php foreach ($item_media_images as $media): ?>
+              <div style="text-align:center;">
+                <a href="<?= base_url('uploads/item_pics/' . esc($media['filename'])) ?>" target="_blank">
+                  <img src="<?= base_url('uploads/item_pics/' . esc($media['filename'])) ?>"
+                       alt="<?= esc($media['original_name']) ?>"
+                       class="image-preview"
+                       style="max-width:100px; max-height:100px;">
+                </a>
+                <div style="font-size:11px; color:#888; max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<?= esc($media['original_name']) ?>">
+                  <?= esc($media['original_name']) ?>
+                </div>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      <?php endif; ?>
+
+      <!-- Additional PDFs -->
+      <?php if (!empty($item_media_pdfs)): ?>
+        <div class="item-detail-section">
+          <div class="section-title">Additional PDFs</div>
+          <?php foreach ($item_media_pdfs as $media): ?>
+            <div style="margin-bottom:5px;">
+              <a href="<?= base_url('uploads/item_pdf/' . esc($media['filename'])) ?>" class="btn btn-default btn-sm" target="_blank">
+                <span class="glyphicon glyphicon-file"></span> <?= esc($media['original_name'] ?: $media['filename']) ?>
+              </a>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      <?php endif;?>
 
       <!-- Action Buttons -->
       <div class="item-detail-section">

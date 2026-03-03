@@ -9,6 +9,7 @@ use App\Models\Attribute;
 use App\Models\Inventory;
 use App\Models\Item;
 use App\Models\Item_kit;
+use App\Models\Item_media;
 use App\Models\Item_quantity;
 use App\Models\Item_taxes;
 use App\Models\Stock_location;
@@ -34,6 +35,7 @@ class Items extends Secure_Controller
 	private Inventory $inventory;
 	private Item $item;
 	private Item_kit $item_kit;
+	private Item_media $item_media;
 	private Item_quantity $item_quantity;
 	private Item_taxes $item_taxes;
 	private Stock_location $stock_location;
@@ -57,6 +59,7 @@ class Items extends Secure_Controller
 		$this->inventory = model(Inventory::class);
 		$this->item = model(Item::class);
 		$this->item_kit = model(Item_kit::class);
+		$this->item_media = model(Item_media::class);
 		$this->item_quantity = model(Item_quantity::class);
 		$this->item_taxes = model(Item_taxes::class);
 		$this->stock_location = model(Stock_location::class);
@@ -340,6 +343,10 @@ class Items extends Secure_Controller
 		$category_results = $db->table('item_categories')->where('item_id', $item_id)->get()->getResultArray();
 		$data['categories'] = array_column($category_results, 'name');
 
+		// Get additional media (multiple images and PDFs)
+		$data['item_media_images'] = $this->item_media->get_by_item($item_id, 'image');
+		$data['item_media_pdfs']   = $this->item_media->get_by_item($item_id, 'pdf');
+
 		// Get tax information
 		$data['item_tax_info'] = $this->item_taxes->get_info($item_id);
 		echo view('items/view', $data);
@@ -547,6 +554,11 @@ class Items extends Secure_Controller
     if (!empty($item_info->unit_price) && !empty($item_info->qty_per_pack) && $item_info->qty_per_pack > 0) {
         $data['price_per_unit'] = round($item_info->unit_price / $item_info->qty_per_pack, 2);
     }
+
+    // Load additional media for editing
+    $data['item_media_images'] = $item_id !== NEW_ENTRY ? $this->item_media->get_by_item($item_id, 'image') : [];
+    $data['item_media_pdfs']   = $item_id !== NEW_ENTRY ? $this->item_media->get_by_item($item_id, 'pdf') : [];
+
     // echo (json_encode($data));
 		echo view('items/form', $data);
 	}
@@ -936,7 +948,6 @@ class Items extends Secure_Controller
 			}
 
 			$use_destination_based_tax = (bool)$this->config['use_destination_based_tax'];
-
 			if(!$use_destination_based_tax)
 			{
 				$items_taxes_data = [];
@@ -1008,6 +1019,35 @@ class Items extends Secure_Controller
           ]);
         }
       }
+
+			// Handle multiple additional images
+			$additional_images = $this->upload_multiple_images();
+			foreach ($additional_images as $img) {
+				if (!empty($img['filename'])) {
+					$this->item_media->save_media($item_id, 'image', $img['filename'], $img['original_name'] ?? '');
+				}
+			}
+
+			// Handle multiple additional PDFs
+			$additional_pdfs = $this->upload_multiple_pdfs();
+			foreach ($additional_pdfs as $pdf) {
+				if (!empty($pdf['filename'])) {
+					$this->item_media->save_media($item_id, 'pdf', $pdf['filename'], $pdf['original_name'] ?? '');
+				}
+			}
+
+			// Handle deletion of existing media entries
+			$delete_media_ids = $this->request->getPost('delete_media_ids');
+			if (!empty($delete_media_ids) && is_array($delete_media_ids)) {
+				foreach ($delete_media_ids as $media_id) {
+					$media_entry = $this->item_media->find((int)$media_id);
+					if ($media_entry && (int)$media_entry['item_id'] === $item_id) {
+						$upload_dir = $media_entry['media_type'] === 'image' ? FCPATH . 'uploads/item_pics/' : FCPATH . 'uploads/item_pdf/';
+						@unlink($upload_dir . $media_entry['filename']);
+						$this->item_media->delete_media((int)$media_id);
+					}
+				}
+			}
 
 			if ($success && $upload_success) {
 				$message = lang('Items.successful_' . ($new_item ? 'adding' : 'updating')) . ' ' . $item_data['name'];
@@ -1122,6 +1162,91 @@ class Items extends Secure_Controller
       error_log($th);
       return [];
     }
+	}
+
+	/**
+	 * Upload multiple additional images (from items_images[] input).
+	 * @return array  Array of ['filename' => '...', 'original_name' => '...']
+	 */
+	private function upload_multiple_images(): array
+	{
+		$files = $this->request->getFiles();
+		$uploaded = [];
+
+		if (empty($files['items_images'])) {
+			return [];
+		}
+
+		foreach ($files['items_images'] as $file) {
+			if (!$file->isValid() || $file->hasMoved()) {
+				continue;
+			}
+			if ($file->getError() === UPLOAD_ERR_NO_FILE) {
+				continue;
+			}
+
+			$original_name = $file->getClientName();
+			$info = pathinfo($original_name);
+			$raw_name = uniqid('item_media_') . '_' . preg_replace('/[^a-zA-Z0-9_\-]/', '', $info['filename']);
+			$destination = FCPATH . 'uploads/item_pics/' . $raw_name . '.png';
+
+			try {
+				Services::image()
+					->withFile($file->getTempName())
+					->resize(800, 800, true)
+					->convert(IMAGETYPE_PNG)
+					->save($destination, 80);
+
+				$uploaded[] = [
+					'filename'      => $raw_name . '.png',
+					'original_name' => $original_name,
+				];
+			} catch (\Throwable $th) {
+				log_message('error', 'upload_multiple_images: ' . $th->getMessage());
+			}
+		}
+
+		return $uploaded;
+	}
+
+	/**
+	 * Upload multiple additional PDFs (from items_pdfs[] input).
+	 * @return array  Array of ['filename' => '...', 'original_name' => '...']
+	 */
+	private function upload_multiple_pdfs(): array
+	{
+		$files = $this->request->getFiles();
+		$uploaded = [];
+
+		if (empty($files['items_pdfs'])) {
+			return [];
+		}
+
+		foreach ($files['items_pdfs'] as $file) {
+			if (!$file->isValid() || $file->hasMoved()) {
+				continue;
+			}
+			if ($file->getError() === UPLOAD_ERR_NO_FILE) {
+				continue;
+			}
+
+			$original_name = $file->getClientName();
+			$ext = $file->guessExtension() ?: 'pdf';
+			$raw_name = uniqid('item_media_') . '_' . preg_replace('/[^a-zA-Z0-9_\-]/', '', pathinfo($original_name, PATHINFO_FILENAME));
+			$new_filename = $raw_name . '.' . $ext;
+
+			try {
+				$file->move(FCPATH . 'uploads/item_pdf/', $new_filename, true);
+				$uploaded[] = [
+					'filename'      => $new_filename,
+					'original_name' => $original_name,
+				];
+			} catch (\Throwable $th) {
+				log_message('error', 'upload_multiple_pdfs: ' . $th->getMessage());
+			}
+		}
+
+		return $uploaded;
 	}
 
 	/**

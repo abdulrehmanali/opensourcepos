@@ -20,6 +20,8 @@
  * @var bool $logo_exists
  * @var string $image_path
  * @var string $pdf_path
+ * @var array $item_media_images
+ * @var array $item_media_pdfs
  * @var string $selected_low_sell_item
  * @var int $selected_low_sell_item_id
  * @var string $controller_name
@@ -491,6 +493,75 @@
                 <input type="file" name="items_pdf" accept="application/pdf">
               </span>
               <a href="#" class="btn btn-default btn-sm fileinput-exists" data-dismiss="fileinput"><?= lang('Items.remove_pdf') ?></a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Multiple Additional Avatars -->
+      <div class="form-group form-group-sm">
+        <label class="control-label col-xs-3">Additional Images</label>
+        <div class="col-xs-8">
+          <!-- Existing additional images -->
+          <?php if (!empty($item_media_images)): ?>
+            <div id="existing_media_images" style="margin-bottom:10px;">
+              <?php foreach ($item_media_images as $media): ?>
+                <div class="media-item-row" id="media_img_row_<?= $media['id'] ?>" style="display:inline-block; margin:4px; text-align:center; vertical-align:top;">
+                  <div>
+                    <img src="<?= base_url('uploads/item_pics/' . esc($media['filename'])) ?>"
+                         alt="<?= esc($media['original_name']) ?>"
+                         style="max-width:80px; max-height:80px; border:1px solid #ddd; border-radius:3px; padding:3px;">
+                  </div>
+                  <div style="font-size:11px; color:#666; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<?= esc($media['original_name']) ?>">
+                    <?= esc($media['original_name']) ?>
+                  </div>
+                  <label>
+                    <input type="checkbox" name="delete_media_ids[]" value="<?= $media['id'] ?>"> Remove
+                  </label>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          <?php endif; ?>
+
+          <!-- Upload new additional images -->
+          <div id="additional_images_container">
+            <div class="additional-image-row" style="margin-bottom:5px;">
+              <input type="file" name="items_images[]" accept="image/*" style="display:inline-block;">
+              <a href="#" class="btn btn-xs btn-default add-image-row" style="margin-left:5px;">
+                <span class="glyphicon glyphicon-plus"></span> Add Another
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Multiple Additional PDFs -->
+      <div class="form-group form-group-sm">
+        <label class="control-label col-xs-3">Additional PDFs</label>
+        <div class="col-xs-8">
+          <!-- Existing additional PDFs -->
+          <?php if (!empty($item_media_pdfs)): ?>
+            <div id="existing_media_pdfs" style="margin-bottom:10px;">
+              <?php foreach ($item_media_pdfs as $media): ?>
+                <div class="media-pdf-row" id="media_pdf_row_<?= $media['id'] ?>" style="margin-bottom:4px;">
+                  <a href="<?= base_url('uploads/item_pdf/' . esc($media['filename'])) ?>" target="_blank" class="btn btn-xs btn-default">
+                    <span class="glyphicon glyphicon-file"></span> <?= esc($media['original_name'] ?: $media['filename']) ?>
+                  </a>
+                  <label style="margin-left:8px;">
+                    <input type="checkbox" name="delete_media_ids[]" value="<?= $media['id'] ?>"> Remove
+                  </label>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          <?php endif; ?>
+
+          <!-- Upload new additional PDFs -->
+          <div id="additional_pdfs_container">
+            <div class="additional-pdf-row" style="margin-bottom:5px;">
+              <input type="file" name="items_pdfs[]" accept="application/pdf" style="display:inline-block;">
+              <a href="#" class="btn btn-xs btn-default add-pdf-row" style="margin-left:5px;">
+                <span class="glyphicon glyphicon-plus"></span> Add Another
+              </a>
             </div>
           </div>
         </div>
@@ -1333,6 +1404,34 @@
             }
           });
         }
+      });
+
+      // Additional images: dynamic "Add Another" rows
+      $(document).on('click', '.add-image-row', function(e) {
+        e.preventDefault();
+        var newRow = $('<div class="additional-image-row" style="margin-bottom:5px;">' +
+          '<input type="file" name="items_images[]" accept="image/*" style="display:inline-block;">' +
+          ' <a href="#" class="btn btn-xs btn-danger remove-row" style="margin-left:5px;">' +
+          '<span class="glyphicon glyphicon-minus"></span> Remove</a>' +
+          '</div>');
+        $('#additional_images_container').append(newRow);
+      });
+
+      // Additional PDFs: dynamic "Add Another" rows
+      $(document).on('click', '.add-pdf-row', function(e) {
+        e.preventDefault();
+        var newRow = $('<div class="additional-pdf-row" style="margin-bottom:5px;">' +
+          '<input type="file" name="items_pdfs[]" accept="application/pdf" style="display:inline-block;">' +
+          ' <a href="#" class="btn btn-xs btn-danger remove-row" style="margin-left:5px;">' +
+          '<span class="glyphicon glyphicon-minus"></span> Remove</a>' +
+          '</div>');
+        $('#additional_pdfs_container').append(newRow);
+      });
+
+      // Remove dynamically added rows
+      $(document).on('click', '.remove-row', function(e) {
+        e.preventDefault();
+        $(this).closest('div').remove();
       });
 
 </script>
