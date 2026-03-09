@@ -1233,6 +1233,8 @@
       const observer = new MutationObserver(function(mutations) {
         mutations.forEach(function() {
           attrs.querySelectorAll('input, textarea, select').forEach(attachCapitalizer);
+          // Also update the auto-generated name when attributes change (including deletions)
+          updateAutoNameIfEmpty();
         });
       });
       observer.observe(attrs, { childList: true, subtree: true });
@@ -1301,7 +1303,7 @@
             }
           } else {
             // Search for attribute with exact or partial match
-            value = attributeValueByLabelRegex(new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
+            value = attributeValueByLabelRegex(new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'));
           }
           
           if (value) {

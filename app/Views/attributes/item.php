@@ -211,30 +211,155 @@ foreach ($ordered as $definition_id => $definition_value) {
   (function() {
     <?= view('partial/datepicker_locale', ['config' => '{ minView: 2, format: "' . dateformat_bootstrap($config['dateformat'] . '"}')]) ?>
 
+    const ITEM_ID = <?= json_encode($item_id) ?>;
+    const STORAGE_KEY = 'item_attributes_' + ITEM_ID;
+
     var enable_delete = function() {
       $('.remove_attribute_btn').click(function() {
-        $(this).parents('.form-group').remove();
+        const $formGroup = $(this).parents('.form-group');
+        const $input = $formGroup.find("[name*='attribute_links']");
+        
+        if ($input.length) {
+          const definition_id = $input.data('definition-id');
+          // Clear the value from localStorage
+          const values = definition_values();
+          delete values[definition_id];
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
+          } catch (e) {
+            console.warn('Failed to update localStorage:', e);
+          }
+        }
+        
+        $formGroup.remove();
       });
     };
 
-    enable_delete();
+    var saveToLocalStorage = function() {
+      const values = definition_values();
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
+      } catch (e) {
+        console.warn('Failed to save to localStorage:', e);
+      }
+    };
 
-    $("input[name*='attribute_links']").change(function() {
-      var definition_id = $(this).data('definition-id');
-      $("input[name='attribute_ids[" + definition_id + "]']").val('');
-    }).autocomplete({
-      source: function(request, response) {
-        $.get('<?= 'attributes/suggestAttribute/' ?>' + this.element.data('definition-id') + '?term=' + request.term, function(data) {
-          return response(data);
-        }, 'json');
-      },
-      appendTo: '.modal-content',
-      select: function(event, ui) {
-        event.preventDefault();
-        $(this).val(ui.item.label);
-      },
-      delay: 10
-    });
+    var loadFromLocalStorage = function() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const values = JSON.parse(saved);
+          Object.keys(values).forEach(function(definition_id) {
+            const selector = "[name='attribute_links[" + definition_id + "]']";
+            const $element = $(selector);
+            
+            if ($element.length) {
+              const value = values[definition_id];
+              if ($element.hasClass('select-2-new-item-attributes')) {
+                // For select2 dropdowns, set value
+                $element.val(value).trigger('change');
+              } else if ($element.attr('type') === 'checkbox') {
+                // For checkboxes
+                $element.prop('checked', value == 1);
+              } else {
+                // For text, decimal, and date inputs
+                $element.val(value);
+              }
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to load from localStorage:', e);
+      }
+    };
+
+    var initializeAttributes = function() {
+      enable_delete();
+
+      $("input[name*='attribute_links']").change(function() {
+        var definition_id = $(this).data('definition-id');
+        $("input[name='attribute_ids[" + definition_id + "]']").val('');
+        saveToLocalStorage();
+      }).autocomplete({
+        source: function(request, response) {
+          $.get('<?= 'attributes/suggestAttribute/' ?>' + this.element.data('definition-id') + '?term=' + request.term, function(data) {
+            return response(data);
+          }, 'json');
+        },
+        appendTo: '.modal-content',
+        select: function(event, ui) {
+          event.preventDefault();
+          $(this).val(ui.item.label);
+          saveToLocalStorage();
+        },
+        delay: 10
+      });
+
+      $('.select-2-new-item-attributes').each(function() {
+        const $select = $(this);
+
+        $select.select2({
+          tags: true,
+          createTag: function(params) {
+            var term = $.trim(params.term);
+            if (term === '') return null;
+
+            return {
+              id: term, // temporary id
+              text: term.replace(/\b\w/g, (l) => l.toUpperCase()),
+              newTag: true
+            };
+          },
+          insertTag: function(data, tag) {
+            data.push(tag);
+          }
+        }).on('select2:select', function(e) {
+          const data = e.params.data;
+          const dataText = data.text.replace(/\b\w/g, (l) => l.toUpperCase())
+          if (data.id === dataText && data.newTag) {
+            $.post('attributes/saveAttributeValue/', {
+              definition_id: $select.data('definition-id'),
+              attribute_value: dataText
+            }, function(response) {
+              response = JSON.parse(response)
+              // Assume response contains the real ID returned from the server
+              const newId = response.id || response; // support both plain id or { id: x }
+
+              // Replace the temporary tag with the one having the real ID
+              const newOption = new Option(dataText, newId, true, true);
+              $select.append(newOption).trigger('change');
+
+              // Remove the temporary option
+              $select.find('option[value="' + dataText + '"]').remove();
+              saveToLocalStorage();
+            });
+          }
+        }).on('change', function(e) {
+          const $changedSelect = $(this);
+          const selectedOption = $changedSelect.find("option:selected");
+          if (selectedOption.length && selectedOption.attr('data-select2-tag') === "true") {
+            const newTag = selectedOption.text();
+            $.post('attributes/saveAttributeValue/', {
+              definition_id: $changedSelect.data('definition-id'),
+              attribute_value: newTag
+            }, function(response) {
+              response = JSON.parse(response)
+              const newId = response.id || response;
+              const newOption = new Option(newTag, newId, true, true);
+              $changedSelect.append(newOption).trigger('change');
+              $changedSelect.find('option[value="' + newTag + '"]').remove();
+              saveToLocalStorage();
+            });
+          }
+          saveToLocalStorage();
+        });
+      });
+
+      // Load previously saved values from localStorage
+      loadFromLocalStorage();
+    };
+
+    initializeAttributes();
 
     var definition_values = function() {
       var result = {};
@@ -251,72 +376,29 @@ foreach ($ordered as $definition_id => $definition_value) {
       attribute_values[definition_id] = '';
       $('#attributes').load('<?= "items/attributes/$item_id" ?>', {
         'definition_ids': JSON.stringify(attribute_values)
-      }, enable_delete);
+      }, initializeAttributes);
     };
 
     $('#definition_name').change(function() {
       refresh();
     });
 
-    $('.select-2-new-item-attributes').each(function() {
-      const $select = $(this);
+    // Clear localStorage when form is submitted
+    var clearStorageOnSubmit = function() {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (e) {
+        console.warn('Failed to clear localStorage:', e);
+      }
+    };
 
-      $select.select2({
-        tags: true,
-        createTag: function(params) {
-          var term = $.trim(params.term);
-          if (term === '') return null;
-
-          return {
-            id: term, // temporary id
-            text: term.replace(/\b\w/g, (l) => l.toUpperCase()),
-            newTag: true
-          };
-        },
-        insertTag: function(data, tag) {
-          data.push(tag);
-        }
-      }).on('select2:select', function(e) {
-        const data = e.params.data;
-        const dataText = data.text.replace(/\b\w/g, (l) => l.toUpperCase())
-        if (data.id === dataText && data.newTag) {
-          $.post('attributes/saveAttributeValue/', {
-            definition_id: $select.data('definition-id'),
-            attribute_value: dataText
-          }, function(response) {
-            response = JSON.parse(response)
-            // Assume response contains the real ID returned from the server
-            const newId = response.id || response; // support both plain id or { id: x }
-
-            // Replace the temporary tag with the one having the real ID
-            const newOption = new Option(dataText, newId, true, true);
-            $select.append(newOption).trigger('change');
-
-
-            // Remove the temporary option
-            // console.log(data.text)
-            // console.log($select.find('option[value="' + data.id + '"]'))
-            // $select.find('option[value="' + data.id + '"]').remove();
-            $select.find('option[value="' + dataText + '"]').remove();
-          });
-        }
-      }).on('change', function(e) {
-        const $changedSelect = $(this);
-        const selectedOption = $changedSelect.find("option:selected");
-        if (selectedOption.length && selectedOption.attr('data-select2-tag') === "true") {
-          const newTag = selectedOption.text();
-          $.post('attributes/saveAttributeValue/', {
-            definition_id: $changedSelect.data('definition-id'),
-            attribute_value: newTag
-          }, function(response) {
-            response = JSON.parse(response)
-            const newId = response.id || response;
-            const newOption = new Option(newTag, newId, true, true);
-            $changedSelect.append(newOption).trigger('change');
-            $changedSelect.find('option[value="' + newTag + '"]').remove();
-          });
-        }
-      });
+    // Hook into form submission - look for the closest form and bind to submit
+    $(document).on('submit', 'form', function(e) {
+      // Only clear storage if this form contains our attributes
+      if ($(this).find("[name*='attribute_links']").length > 0) {
+        clearStorageOnSubmit();
+      }
     });
+
   })();
 </script>
