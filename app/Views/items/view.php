@@ -13,6 +13,8 @@
  * @var array $definition_values
  * @var array $definition_names
  * @var array $item_tax_info
+ * @var int|null $previous_item_id
+ * @var int|null $next_item_id
  */
 ?>
 <?= view('partial/header') ?>
@@ -81,11 +83,26 @@
 </style>
 
 <div class="container">
-  <div class="back-button">
-    <a href="<?= site_url('items') ?>" class="btn btn-secondary">
-      <span class="glyphicon glyphicon-arrow-left"></span> Back to Items
-    </a>
-  </div>
+  <!-- Item Navigation Buttons -->
+  <nav class="navbar navbar-default" style="margin-bottom: 20px;">
+    <ul class="nav navbar-nav" style="width: 100%; display: flex; justify-content: center; gap: 10px; padding: 10px;">
+      <li>
+        <button type="button" class='btn btn-default btn-sm' id='items_view_back_button' title="Previous Item">
+          <span class="glyphicon glyphicon-chevron-left">&nbsp</span>Back
+        </button>
+      </li>
+      <li>
+        <button type="button" class='btn btn-primary btn-sm' id='items_view_new_button' title="New Item">
+          <span class="glyphicon glyphicon-plus">&nbsp</span>New
+        </button>
+      </li>
+      <li>
+        <button type="button" class='btn btn-default btn-sm' id='items_view_next_button' title="Next Item">
+          <span class="glyphicon glyphicon-chevron-right">&nbsp</span>Next
+        </button>
+      </li>
+    </ul>
+  </nav>
 
   <h1><?= esc($item_info->name) ?></h1>
 
@@ -453,5 +470,55 @@
     </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const BASE_URL = '<?= base_url() ?>';
+    const controller_name = 'items';
+    const previousItemId = <?= json_encode($previous_item_id) ?>;
+    const nextItemId = <?= json_encode($next_item_id) ?>;
+
+    // Initialize button states based on passed variables
+    function initializeButtonStates() {
+      // Disable back button if no previous item
+      if (previousItemId === null) {
+        document.getElementById('items_view_back_button').disabled = true;
+        document.getElementById('items_view_back_button').style.opacity = '0.5';
+      }
+
+      // Disable next button if no next item
+      if (nextItemId === null) {
+        document.getElementById('items_view_next_button').disabled = true;
+        document.getElementById('items_view_next_button').style.opacity = '0.5';
+      }
+    }
+
+    // Initialize button states on page load
+    initializeButtonStates();
+
+    // Back button - navigate to previous item
+    document.getElementById('items_view_back_button').addEventListener('click', function(e) {
+      e.preventDefault();
+      if (this.disabled || previousItemId === null) return;
+
+      window.location.href = `${BASE_URL}/${controller_name}/view/${previousItemId}`;
+    });
+
+    // New button - create new item
+    document.getElementById('items_view_new_button').addEventListener('click', function(e) {
+      e.preventDefault();
+
+      window.location.href = `${BASE_URL}/${controller_name}/edit`;
+    });
+
+    // Next button - navigate to next item
+    document.getElementById('items_view_next_button').addEventListener('click', function(e) {
+      e.preventDefault();
+      if (this.disabled || nextItemId === null) return;
+
+      window.location.href = `${BASE_URL}/${controller_name}/view/${nextItemId}`;
+    });
+  });
+</script>
 
 <?= view('partial/footer') ?>

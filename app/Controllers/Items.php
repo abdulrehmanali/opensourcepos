@@ -349,6 +349,36 @@ class Items extends Secure_Controller
 
 		// Get tax information
 		$data['item_tax_info'] = $this->item_taxes->get_info($item_id);
+
+		// Load navigation state for previous and next items
+		$data['previous_item_id'] = null;
+		$data['next_item_id'] = null;
+		
+		if ($item_id !== NEW_ENTRY) {
+			// Get all non-deleted item IDs sorted by item_id ascending
+			$result = $db->table('items')
+				->select('item_id')
+				->where('deleted', 0)
+				->orderBy('item_id', 'ASC')
+				->get()
+				->getResultArray();
+			
+			$item_ids = array_column($result, 'item_id');
+			$current_index = array_search($item_id, $item_ids);
+			
+			if ($current_index !== false) {
+				// Set previous item ID if not at the beginning
+				if ($current_index > 0) {
+					$data['previous_item_id'] = $item_ids[$current_index - 1];
+				}
+				
+				// Set next item ID if not at the end
+				if ($current_index < count($item_ids) - 1) {
+					$data['next_item_id'] = $item_ids[$current_index + 1];
+				}
+			}
+		}
+
 		echo view('items/view', $data);
 	}
 
