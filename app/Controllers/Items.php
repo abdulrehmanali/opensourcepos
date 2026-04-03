@@ -1093,7 +1093,7 @@ class Items extends Secure_Controller
 
 			if ($success && $upload_success) {
 				$message = lang('Items.successful_' . ($new_item ? 'adding' : 'updating')) . ' ' . $item_data['name'];
-				echo json_encode(['success' => true, 'message' => $message, 'id' => $item_id]);
+				echo json_encode(['success' => true, 'message' => $message, 'id' => $item_id, 'redirect' => base_url("items/edit/{$item_id}")]);
 			} else {
 				$message = $upload_success ? lang('Items.error_adding_updating') . ' ' . $item_data['name'] : strip_tags($upload_data['error']);
 				echo json_encode(['success' => false, 'message' => $message, 'id' => $item_id]);

@@ -760,7 +760,11 @@
           }
           alert(response.message);
           if (response.success) {
-            location.replace('/public/items');
+            if (response.redirect) {
+              location.replace(response.redirect);
+            } else {
+              location.replace('/public/items');
+            }
           }
         },
         dataType: 'json'
