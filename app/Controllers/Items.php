@@ -288,6 +288,14 @@ class Items extends Secure_Controller
 		$data['definition_names'] = $this->attribute->get_definition_names();
 		$data['include_hsn'] = $this->config['include_hsn'] === '1';
 
+		// Process attribute values to ensure proper data structure for display
+		foreach($data['definition_values'] as $definition_id => $definition_value)
+		{
+			$attribute_value = $this->attribute->get_attribute_value($item_id, $definition_id);
+			$values = &$data['definition_values'][$definition_id];
+			$values['attribute_value'] = $attribute_value;
+		}
+
 		// Get item image
 		$data['logo_exists'] = $item_info->pic_filename !== null;
 		if($item_info->pic_filename != null)
