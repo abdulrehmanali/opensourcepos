@@ -559,6 +559,48 @@ class Items extends Secure_Controller
     $data['item_media_images'] = $item_id !== NEW_ENTRY ? $this->item_media->get_by_item($item_id, 'image') : [];
     $data['item_media_pdfs']   = $item_id !== NEW_ENTRY ? $this->item_media->get_by_item($item_id, 'pdf') : [];
 
+    // Load navigation state for previous and next items
+    $data['previous_item_id'] = null;
+    $data['next_item_id'] = null;
+    
+    if ($item_id === NEW_ENTRY) {
+        // For new item form, get the latest item ID to allow back navigation
+        $latest_item = $db->table('items')
+            ->select('item_id')
+            ->where('deleted', 0)
+            ->orderBy('item_id', 'DESC')
+            ->limit(1)
+            ->get()
+            ->getRowArray();
+        
+        if ($latest_item) {
+            $data['previous_item_id'] = $latest_item['item_id'];
+        }
+    } else {
+        // Get all non-deleted item IDs sorted by item_id ascending
+        $result = $db->table('items')
+            ->select('item_id')
+            ->where('deleted', 0)
+            ->orderBy('item_id', 'ASC')
+            ->get()
+            ->getResultArray();
+        
+        $item_ids = array_column($result, 'item_id');
+        $current_index = array_search($item_id, $item_ids);
+        
+        if ($current_index !== false) {
+            // Set previous item ID if not at the beginning
+            if ($current_index > 0) {
+                $data['previous_item_id'] = $item_ids[$current_index - 1];
+            }
+            
+            // Set next item ID if not at the end
+            if ($current_index < count($item_ids) - 1) {
+                $data['next_item_id'] = $item_ids[$current_index + 1];
+            }
+        }
+    }
+
     // echo (json_encode($data));
 		echo view('items/form', $data);
 	}
@@ -2087,5 +2129,65 @@ class Items extends Secure_Controller
 	public function duplicate(int $item_id): void
 	{
 		$this->getDuplicate($item_id);
+	}
+
+	/**
+	 * Get the previous item in the list (ordered by item_id ascending)
+	 * Returns JSON with the previous item's ID or null if at the beginning
+	 */
+	public function previousItem(int $item_id)
+	{
+		$this->response->setContentType('application/json');
+
+		// Get all item IDs sorted by item_id ascending
+		$db = db_connect();
+		$result = $db->table('items')
+			->select('item_id')
+			->where('deleted', 0)
+			->orderBy('item_id', 'ASC')
+			->get()
+			->getResultArray();
+
+		// Find the current item's position
+		$item_ids = array_column($result, 'item_id');
+		$current_index = array_search($item_id, $item_ids);
+
+		if ($current_index === false || $current_index === 0) {
+			// Item not found or is the first item
+			return $this->response->setJSON(['success' => false, 'message' => 'No previous item']);
+		}
+
+		$previous_item_id = $item_ids[$current_index - 1];
+		return $this->response->setJSON(['success' => true, 'item_id' => $previous_item_id]);
+	}
+
+	/**
+	 * Get the next item in the list (ordered by item_id ascending)
+	 * Returns JSON with the next item's ID or null if at the end
+	 */
+	public function nextItem(int $item_id)
+	{
+		$this->response->setContentType('application/json');
+
+		// Get all item IDs sorted by item_id ascending
+		$db = db_connect();
+		$result = $db->table('items')
+			->select('item_id')
+			->where('deleted', 0)
+			->orderBy('item_id', 'ASC')
+			->get()
+			->getResultArray();
+
+		// Find the current item's position
+		$item_ids = array_column($result, 'item_id');
+		$current_index = array_search($item_id, $item_ids);
+
+		if ($current_index === false || $current_index === count($item_ids) - 1) {
+			// Item not found or is the last item
+			return $this->response->setJSON(['success' => false, 'message' => 'No next item']);
+		}
+
+		$next_item_id = $item_ids[$current_index + 1];
+		return $this->response->setJSON(['success' => true, 'item_id' => $next_item_id]);
 	}
 }

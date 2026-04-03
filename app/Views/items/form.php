@@ -26,6 +26,8 @@
  * @var int $selected_low_sell_item_id
  * @var string $controller_name
  * @var array $config
+ * @var int|null $previous_item_id
+ * @var int|null $next_item_id
  */
 ?>
 <?= view('partial/header') ?>
@@ -77,6 +79,28 @@
   }
 </style>
 <ul id="error_message_box" class="error_message_box"></ul>
+
+<!-- Item Navigation Buttons -->
+<nav class="navbar navbar-default" style="margin-bottom: 20px;">
+  <ul class="nav navbar-nav" style="width: 100%; display: flex; justify-content: center; gap: 10px; padding: 10px;">
+    <li>
+      <button type="button" class='btn btn-default btn-sm' id='items_back_button' title="Previous Item">
+        <span class="glyphicon glyphicon-chevron-left">&nbsp</span>Back
+      </button>
+    </li>
+    <li>
+      <button type="button" class='btn btn-primary btn-sm' id='items_new_button' title="New Item">
+        <span class="glyphicon glyphicon-plus">&nbsp</span>New
+      </button>
+    </li>
+    <li>
+      <button type="button" class='btn btn-default btn-sm' id='items_next_button' title="Next Item">
+        <span class="glyphicon glyphicon-chevron-right">&nbsp</span>Next
+      </button>
+    </li>
+  </ul>
+</nav>
+
 <div class="row">
   <div class="col-sm-6">
     <div id="required_fields_message"><?= lang('Common.fields_required_message') ?></div>
@@ -1434,6 +1458,86 @@
       $(document).on('click', '.remove-row', function(e) {
         e.preventDefault();
         $(this).closest('div').remove();
+      });
+
+      // Item Navigation Script
+      document.addEventListener('DOMContentLoaded', function() {
+        const BASE_URL = '<?= base_url() ?>';
+        const controller_name = 'items';
+        const previousItemId = <?= json_encode($previous_item_id) ?>;
+        const nextItemId = <?= json_encode($next_item_id) ?>;
+        let formModified = false;
+
+        // Track form changes
+        const itemForm = document.getElementById('item_form');
+        if (itemForm) {
+          itemForm.addEventListener('change', function() {
+            formModified = true;
+          });
+          itemForm.addEventListener('input', function() {
+            formModified = true;
+          });
+        }
+
+        // Get current item ID from the form action
+        function getCurrentItemId() {
+          const formAction = document.getElementById('item_form')?.getAttribute('action');
+          if (!formAction) return null;
+          const match = formAction.match(/\/(\d+)$/);
+          return match ? parseInt(match[1]) : null;
+        }
+
+        // Handle unsaved changes warning
+        function checkUnsavedChanges() {
+          if (formModified) {
+            return confirm('You have unsaved changes. Do you want to leave this page?');
+          }
+          return true;
+        }
+
+        // Initialize button states based on passed variables
+        function initializeButtonStates() {
+          // Disable back button if no previous item
+          if (previousItemId === null) {
+            document.getElementById('items_back_button').disabled = true;
+            document.getElementById('items_back_button').style.opacity = '0.5';
+          }
+
+          // Disable next button if no next item
+          if (nextItemId === null) {
+            document.getElementById('items_next_button').disabled = true;
+            document.getElementById('items_next_button').style.opacity = '0.5';
+          }
+        }
+
+        // Initialize button states on page load
+        initializeButtonStates();
+
+        // Back button - navigate to previous item
+        document.getElementById('items_back_button').addEventListener('click', function(e) {
+          e.preventDefault();
+          if (this.disabled || previousItemId === null) return;
+          if (!checkUnsavedChanges()) return;
+
+          window.location.href = `${BASE_URL}/${controller_name}/edit/${previousItemId}`;
+        });
+
+        // New button - create new item
+        document.getElementById('items_new_button').addEventListener('click', function(e) {
+          e.preventDefault();
+          if (!checkUnsavedChanges()) return;
+
+          window.location.href = `${BASE_URL}/${controller_name}/edit`;
+        });
+
+        // Next button - navigate to next item
+        document.getElementById('items_next_button').addEventListener('click', function(e) {
+          e.preventDefault();
+          if (this.disabled || nextItemId === null) return;
+          if (!checkUnsavedChanges()) return;
+
+          window.location.href = `${BASE_URL}/${controller_name}/edit/${nextItemId}`;
+        });
       });
 
 </script>
